@@ -818,8 +818,10 @@ class MaxBotApi {
         }
 
         /**
-         * The attachments of a message to keep through an edit: all but the keyboard,
-         * sent back by their tokens.
+         * The attachments of a message to keep through an edit: the uploaded media,
+         * sent back by their tokens. The keyboard is replaced, and the preview of a
+         * link (share) is built by MAX out of the text again: sent back by its token
+         * it fails the whole edit.
          *
          * @param array $p_body Body of the message as MAX gave it.
          * @return array
@@ -832,7 +834,8 @@ class MaxBotApi {
                 }
 
                 foreach( $p_body['attachments'] as $t_attachment ) {
-                        if( !is_array( $t_attachment ) || !isset( $t_attachment['type'] ) || $t_attachment['type'] == 'inline_keyboard'
+                        if( !is_array( $t_attachment ) || !isset( $t_attachment['type'] )
+                                        || !in_array( $t_attachment['type'], array( 'file', 'image', 'video', 'audio' ), TRUE )
                                         || !isset( $t_attachment['payload']['token'] ) ) {
                                 continue;
                         }
