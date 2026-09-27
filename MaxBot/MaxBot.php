@@ -71,17 +71,8 @@ class MaxBotPlugin extends MantisPlugin {
                                   'pgsql' => 'WITHOUT OIDS',
         );
 
-        # Special handling for Oracle (oci8):
-        # - Field cannot be null with oci because empty string equals NULL
-        # - Oci uses a different date literal syntax
-        # - Default BLOBs to empty_blob() function
-        if( db_is_oracle() ) {
-            $t_notnull      = '';
-            $t_blob_default = 'DEFAULT " empty_blob() "';
-        } else {
-            $t_notnull      = 'NOTNULL';
-            $t_blob_default = '';
-        }
+        # Oracle (oci8) takes an empty string for NULL, so a field cannot be NOT NULL there
+        $t_notnull = db_is_oracle() ? '' : 'NOTNULL';
 
         return array(
                                   // version 1.0.0 (schema 0)
@@ -93,7 +84,7 @@ class MaxBotPlugin extends MantisPlugin {
                                                                                       $t_table_options
                                                             ) ),
                                   // version 1.0.0 (schema 1)
-                                  array( 'CreateIndexSQL', array( 'idx_account_id', plugin_table( 'account' ), 'account_id', array( 'UNIQUE' ) ) ),
+                                  array( 'CreateIndexSQL', array( 'idx_maxbot_account_id', plugin_table( 'account' ), 'account_id', array( 'UNIQUE' ) ) ),
                                   // version 1.0.0 (schema 2)
                                   // The messages about the issues sent to the chats, a reply to one
                                   // of them becomes a note. MAX names a message by a string ( "mid.…" ).
@@ -105,7 +96,7 @@ class MaxBotPlugin extends MantisPlugin {
                                                                                       $t_table_options
                                                             ) ),
                                   // version 1.0.0 (schema 3)
-                                  array( 'CreateIndexSQL', array( 'idx_message_link_chat', plugin_table( 'message_link' ), array( 'chat_id', 'message_id' ) ) ),
+                                  array( 'CreateIndexSQL', array( 'idx_maxbot_message_link_chat', plugin_table( 'message_link' ), array( 'chat_id', 'message_id' ) ) ),
                                   // version 1.0.0 (schema 4)
                                   // The registrations in progress, one per MAX account: the PIN code
                                   // issued to it and the id of the invitation the bot has sent.
@@ -118,7 +109,7 @@ class MaxBotPlugin extends MantisPlugin {
                                                             ) ),
                                   // version 1.0.0 (schema 5)
                                   // Unique: a code must identify exactly one MAX account
-                                  array( 'CreateIndexSQL', array( 'idx_registration_pin_code', plugin_table( 'registration' ), 'pin_code', array( 'UNIQUE' ) ) ),
+                                  array( 'CreateIndexSQL', array( 'idx_maxbot_registration_pin_code', plugin_table( 'registration' ), 'pin_code', array( 'UNIQUE' ) ) ),
         );
     }
 
