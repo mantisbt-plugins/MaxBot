@@ -1050,6 +1050,7 @@ class MaxBotApi {
                                           'timeout'     => (int)plugin_config_get( 'time_out_server_response' ),
                                           'http_errors' => FALSE,
                                           'headers'     => array( 'Authorization' => $t_token ),
+                                          'verify'      => $this->ca_bundle(),
                 );
 
                 $t_proxy_address = plugin_config_get( 'proxy_address' );
@@ -1062,6 +1063,57 @@ class MaxBotApi {
                 $this->client_token = $t_token;
 
                 return $this->client;
+        }
+
+        /**
+         * CA bundle to verify the servers of MAX with.
+         *
+         * The certificates of MAX are issued by the Russian Trusted Root CA of the
+         * Ministry of Digital Development, which the usual CA stores lack. The
+         * plugin ships that root and adds it to the CA store of the system, so the
+         * other servers the bot talks to keep being verified as before.
+         *
+         * @return string Path of the bundle.
+         */
+        private function ca_bundle() {
+                $t_root = dirname( dirname( __FILE__ ) ) . '/certs/russian_trusted_root_ca.pem';
+
+                $t_locations = openssl_get_cert_locations();
+                $t_system    = NULL;
+
+                foreach( array( ini_get( 'curl.cainfo' ), ini_get( 'openssl.cafile' ), $t_locations['default_cert_file'] ) as $t_file ) {
+                        if( !is_blank( $t_file ) && is_readable( $t_file ) ) {
+                                $t_system = $t_file;
+                                break;
+                        }
+                }
+
+                if( $t_system === NULL ) {
+                        return $t_root;
+                }
+
+                $t_content = file_get_contents( $t_system ) . "\n" . file_get_contents( $t_root );
+                $t_hash    = md5( $t_content );
+                $t_bundle  = sys_get_temp_dir() . '/mantis_maxbot_ca_' . $t_hash . '.pem';
+
+                # The temporary directory is shared: a file planted under the name by
+                # another user is not trusted, only an own one holding exactly the
+                # expected certificates
+                if( is_file( $t_bundle ) && function_exists( 'posix_geteuid' ) && fileowner( $t_bundle ) !== posix_geteuid() ) {
+                        return $t_root;
+                }
+
+                if( !is_readable( $t_bundle ) || md5_file( $t_bundle ) !== $t_hash ) {
+                        # Written aside and renamed, so a parallel request never reads a half of it
+                        $t_part = $t_bundle . '.' . getmypid();
+
+                        if( file_put_contents( $t_part, $t_content ) === FALSE || !rename( $t_part, $t_bundle ) ) {
+                                @unlink( $t_part );
+                                return $t_root;
+                        }
+                }
+
+                return $t_bundle;
         }
 
         /**
