@@ -932,21 +932,31 @@ function maxbot_draft_card_text_rebuild( array $p_bug_data_draft ) {
 }
 
 /**
- * The steps of the draft already answered, in the canonical order.
+ * The steps of the draft already answered, in the order they are asked in: the
+ * required ones first, the optional ones after them, each in the canonical order.
+ * The last of them is the one the step back button takes back, so a summary asked
+ * before the optional fields must not come after them.
  *
  * @param array $p_bug_data_draft Issue draft.
  * @return array Step names.
  */
 function maxbot_draft_answered_steps( array $p_bug_data_draft ) {
-    $t_answered = array();
+    $t_required = array();
+    $t_optional = array();
 
     foreach( maxbot_draft_steps_get( $p_bug_data_draft ) as $t_step ) {
-        if( maxbot_draft_step_is_answered( $t_step, $p_bug_data_draft ) ) {
-            $t_answered[] = $t_step;
+        if( !maxbot_draft_step_is_answered( $t_step, $p_bug_data_draft ) ) {
+            continue;
+        }
+
+        if( maxbot_draft_step_is_required( $t_step ) ) {
+            $t_required[] = $t_step;
+        } else {
+            $t_optional[] = $t_step;
         }
     }
 
-    return $t_answered;
+    return array_merge( $t_required, $t_optional );
 }
 
 /**
