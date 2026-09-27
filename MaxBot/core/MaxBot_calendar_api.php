@@ -703,13 +703,13 @@ function maxbot_event_datetime_display( $p_timestamp ) {
  * @param array  $p_draft    Event draft.
  * @param string $p_question Question of the wizard, or the prompt of its menu.
  * @param string $p_error    Message about the answer being rejected.
- * @return string Text of the event draft card.
+ * @return string HTML of the event draft card.
  */
 function maxbot_event_draft_card_compose( array $p_draft, $p_question = '', $p_error = '' ) {
 
     $t_lines = array();
 
-    $t_lines[] = plugin_lang_get( 'action_label' ) . ': ' . plugin_lang_get( 'menu_create_event' );
+    $t_lines[] = maxbot_card_field( plugin_lang_get( 'action_label' ), plugin_lang_get( 'menu_create_event' ) );
 
     foreach( maxbot_event_draft_steps_get() as $t_step ) {
         if( !maxbot_event_draft_step_is_answered( $t_step, $p_draft ) ) {
@@ -723,7 +723,7 @@ function maxbot_event_draft_card_compose( array $p_draft, $p_question = '', $p_e
             $t_display = plugin_lang_get( 'skipped_mark' );
         }
 
-        $t_lines[] = maxbot_event_draft_step_label( $t_step ) . ': ' . $t_display;
+        $t_lines[] = maxbot_card_field( maxbot_event_draft_step_label( $t_step ), $t_display );
     }
 
     $t_prompt = array();
@@ -902,10 +902,7 @@ function maxbot_event_time_question_get( array $p_draft, $p_step, $p_error = '',
                               date( 'Y-m-d', strtotime( (string)$p_draft[$p_step . '_day'] ) )
     );
 
-    return array(
-                              'text'         => maxbot_event_draft_card_compose( $p_draft, $t_question, $p_error ),
-                              'reply_markup' => $t_inline_keyboard,
-    );
+    return maxbot_card_message( maxbot_event_draft_card_compose( $p_draft, $t_question, $p_error ), $t_inline_keyboard );
 }
 
 /**
@@ -998,10 +995,7 @@ function maxbot_event_draft_card_refresh( array $p_draft, $p_error = '', $p_page
 
     $t_next = maxbot_event_draft_ask_next_step( $p_draft, $p_page );
 
-    return array(
-                              'text'         => maxbot_event_draft_card_compose( $p_draft, $t_next['question'], $p_error ),
-                              'reply_markup' => $t_next['keyboard'],
-    );
+    return maxbot_card_message( maxbot_event_draft_card_compose( $p_draft, $t_next['question'], $p_error ), $t_next['keyboard'] );
 }
 
 /**
@@ -1064,15 +1058,15 @@ function maxbot_event_draft_submit( array $p_draft ) {
 
     $t_text  = maxbot_event_draft_card_compose( $p_draft );
     $t_text .= PHP_EOL;
-    $t_text .= plugin_lang_get( 'card_separator' );
+    $t_text .= maxbot_html( plugin_lang_get( 'card_separator' ) );
     $t_text .= PHP_EOL;
-    $t_text .= sprintf( plugin_lang_get( 'event_creation_complete' ), (int)$t_event_id );
+    $t_text .= maxbot_html( sprintf( plugin_lang_get( 'event_creation_complete' ), (int)$t_event_id ) );
     $t_text .= PHP_EOL;
-    $t_text .= $t_url;
+    $t_text .= maxbot_html( $t_url );
 
     maxbot_event_draft_clear( $t_user_id );
 
-    return array( 'text' => $t_text );
+    return maxbot_card_message( $t_text );
 }
 
 /**
@@ -1267,11 +1261,9 @@ function maxbot_event_report( $p_current_action, MaxBotMessage $p_card ) {
             maxbot_keyboard_event_buttons_add( $t_inline_keyboard, $t_draft );
 
             return array(
-                                      'chat_id'      => $t_orgl_chat_id,
-                                      'message_id'   => $t_callback_msg_id,
-                                      'text'         => maxbot_event_draft_card_compose( $t_draft, $t_question ),
-                                      'reply_markup' => $t_inline_keyboard,
-            );
+                                      'chat_id'    => $t_orgl_chat_id,
+                                      'message_id' => $t_callback_msg_id,
+            ) + maxbot_card_message( maxbot_event_draft_card_compose( $t_draft, $t_question ), $t_inline_keyboard );
 
         case MaxBotActions::SET_PROJECT:
             $t_project_id = (int)$p_current_action[MaxBotActions::SET_PROJECT]['id'];
@@ -1302,11 +1294,9 @@ function maxbot_event_report( $p_current_action, MaxBotMessage $p_card ) {
             $t_inline_keyboard = maxbot_event_draft_step_ask( $t_step, $t_draft, $t_question, $t_page );
 
             return array(
-                                      'chat_id'      => $t_orgl_chat_id,
-                                      'message_id'   => $t_callback_msg_id,
-                                      'text'         => maxbot_event_draft_card_compose( $t_draft, $t_question ),
-                                      'reply_markup' => $t_inline_keyboard,
-            );
+                                      'chat_id'    => $t_orgl_chat_id,
+                                      'message_id' => $t_callback_msg_id,
+            ) + maxbot_card_message( maxbot_event_draft_card_compose( $t_draft, $t_question ), $t_inline_keyboard );
 
         case MaxBotActions::SET_EVENT_DATE:
             $t_step = maxbot_event_date_step_get( $p_current_action[MaxBotActions::SET_EVENT_DATE] );
@@ -1511,11 +1501,9 @@ function maxbot_event_report( $p_current_action, MaxBotMessage $p_card ) {
             $t_inline_keyboard = maxbot_event_draft_step_ask( $t_step_to_ask, $t_draft, $t_question );
 
             return array(
-                                      'chat_id'      => $t_orgl_chat_id,
-                                      'message_id'   => $t_callback_msg_id,
-                                      'text'         => maxbot_event_draft_card_compose( $t_draft, $t_question ),
-                                      'reply_markup' => $t_inline_keyboard,
-            );
+                                      'chat_id'    => $t_orgl_chat_id,
+                                      'message_id' => $t_callback_msg_id,
+            ) + maxbot_card_message( maxbot_event_draft_card_compose( $t_draft, $t_question ), $t_inline_keyboard );
 
 //CREATION OF THE EVENT OUT OF THE DRAFT
         case MaxBotActions::CREATE_EVENT:

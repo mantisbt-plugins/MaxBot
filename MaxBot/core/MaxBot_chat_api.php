@@ -42,7 +42,7 @@ function maxbot_api() {
  * Send a message to a chat.
  *
  * @param string $p_chat_id Chat: the user id of MAX.
- * @param array  $p_message The message: 'text', 'reply_markup', 'reply_to_message_id'.
+ * @param array  $p_message The message: 'text', 'format', 'reply_markup', 'reply_to_message_id'.
  * @return array Ids of the messages sent, empty when nothing went through.
  */
 function maxbot_send( $p_chat_id, array $p_message ) {

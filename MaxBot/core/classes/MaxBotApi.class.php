@@ -19,6 +19,7 @@
  * The MAX messenger, spoken to through its Bot API over plain HTTP.
  *
  * The dialogs speak one neutral language: a message is an array of its 'text',
+ * the 'format' of the text ( 'html' for the dialog cards, plain when missing ),
  * its 'reply_markup' ( a MaxBotKeyboard ) and the 'reply_to_message_id' it
  * answers, an incoming update is a MaxBotUpdate. This class turns them into
  * the requests of the Bot API and back.
@@ -172,6 +173,10 @@ class MaxBotApi {
                 if( $t_has_text ) {
                         # an edit cannot be split, the rest of a longer text is cut off
                         $t_body['text'] = mb_substr( (string)$p_message['text'], 0, self::TEXT_LENGTH_MAX );
+
+                        if( isset( $p_message['format'] ) ) {
+                                $t_body['format'] = (string)$p_message['format'];
+                        }
                 }
 
                 if( $t_has_text && $t_keyboard !== NULL ) {
@@ -719,8 +724,8 @@ class MaxBotApi {
         }
 
         /**
-         * The body of a new message taken from a neutral message: the buttons and the
-         * message answered; the text is set by the caller.
+         * The body of a new message taken from a neutral message: the buttons, the
+         * message answered and the format of the text; the text is set by the caller.
          *
          * @param array $p_message The message.
          * @return array
@@ -735,6 +740,10 @@ class MaxBotApi {
 
                 if( isset( $p_message['reply_to_message_id'] ) && !is_blank( (string)$p_message['reply_to_message_id'] ) ) {
                         $t_body['link'] = array( 'type' => 'reply', 'mid' => (string)$p_message['reply_to_message_id'] );
+                }
+
+                if( isset( $p_message['format'] ) ) {
+                        $t_body['format'] = (string)$p_message['format'];
                 }
 
                 return $t_body;
