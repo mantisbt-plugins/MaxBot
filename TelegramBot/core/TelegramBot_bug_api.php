@@ -18,11 +18,10 @@
 /**
  * Create the issue out of the draft of the wizard.
  *
- * @param array  $p_bug_data_draft Issue draft.
- * @param string $p_transport      Name of the transport the draft was filled in.
+ * @param array $p_bug_data_draft Issue draft.
  * @return integer Id of the issue.
  */
-function telegram_bug_add( $p_bug_data_draft, $p_transport = MESSENGER_TRANSPORT_DEFAULT ) {
+function telegram_bug_add( $p_bug_data_draft ) {
 
     $t_issue = array(
                               'project'     => array( 'id' => $p_bug_data_draft['project'] ),
@@ -201,7 +200,7 @@ function telegram_bug_add( $p_bug_data_draft, $p_transport = MESSENGER_TRANSPORT
 
     # The key of the entry is localized by the core when the history is shown,
     # so the values may carry language neutral data only
-    telegram_history_log( $t_issue_id, 'issue_created', $p_transport );
+    telegram_history_log( $t_issue_id, 'issue_created' );
 
     return $t_issue_id;
 
@@ -224,8 +223,6 @@ function telegram_bug_status_change( $p_draft ) {
 
     $t_existing_bug = bug_get( $t_bug_id, true );
     $t_user_id      = auth_get_current_user_id();
-
-    list( $t_transport ) = messenger_address_parse( (string)plugin_config_get( 'status_change_draft_chat_id', '', FALSE, $t_user_id ) );
 
     $t_result = array(
                               'ok'         => FALSE,
@@ -378,7 +375,7 @@ function telegram_bug_status_change( $p_draft ) {
             if( $t_note_text != '' ) {
                 $t_note_id = bugnote_add( $t_bug_id, $t_note_text, '0:00', config_get( 'default_bugnote_view_status' ) == VS_PRIVATE, 0, '', null, FALSE );
                 bugnote_process_mentions( $t_bug_id, $t_note_id, $t_note_text );
-                telegram_history_log( $t_bug_id, 'note_added', $t_transport, '~' . (int)$t_note_id );
+                telegram_history_log( $t_bug_id, 'note_added', '~' . (int)$t_note_id );
             }
 
             if( !empty( $t_files ) ) {
@@ -388,7 +385,7 @@ function telegram_bug_status_change( $p_draft ) {
                 ) );
                 $t_command->execute();
 
-                telegram_history_log( $t_bug_id, 'file_added', $t_transport );
+                telegram_history_log( $t_bug_id, 'file_added' );
             }
         } else {
             $t_result['warning'] = trim( $t_result['warning'] . PHP_EOL . error_string( ERROR_ACCESS_DENIED ) );

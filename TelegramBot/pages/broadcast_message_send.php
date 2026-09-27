@@ -81,7 +81,7 @@ $t_count_no_link  = 0;
 $t_sender_name = user_get_name( auth_get_current_user_id() );
 
 foreach( $t_mantis_user_list as $t_user ) {
-	$t_addresses = messenger_user_addresses( $t_user['id'] );
+	$t_addresses = messenger_user_chats( $t_user['id'] );
 	if( empty( $t_addresses ) ) {
 		$t_count_no_link++;
 		continue;

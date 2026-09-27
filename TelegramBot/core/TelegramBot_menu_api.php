@@ -71,10 +71,10 @@ function telegram_config_row_print( $p_label, $p_value ) {
 /**
  * Print the rows describing the webhook subscription of the MAX bot, asked live.
  *
- * @param TelegramBotTransport $p_max The MAX transport, enabled.
+ * @param MaxBotApi $p_max The MAX client, with the token set.
  * @return void
  */
-function telegram_max_subscription_rows_print( TelegramBotTransport $p_max ) {
+function telegram_subscription_rows_print( MaxBotApi $p_max ) {
 	$t_label = plugin_lang_get( 'max_subscription' );
 
 	try {
@@ -86,7 +86,7 @@ function telegram_max_subscription_rows_print( TelegramBotTransport $p_max ) {
 
 	# The long polling gets nothing while a subscription is there, and a webhook
 	# without one gets nothing either: both are the state of a deaf bot
-	$t_script = plugin_config_get( 'max_update_method' ) == 'script';
+	$t_script = plugin_config_get( 'update_method' ) == 'script';
 
 	if( $t_info === NULL ) {
 		telegram_config_row_print( $t_label, '<span class="red">' . plugin_lang_get( 'max_subscription_unknown' ) . '</span>' );
@@ -150,8 +150,8 @@ function telegram_config_cli_path_row_print() {
  *
  * @return string
  */
-function telegram_max_webhook_url_get() {
-	return config_get_global( 'path' ) . plugin_page( 'max_hook', TRUE );
+function telegram_webhook_url_get() {
+	return config_get_global( 'path' ) . plugin_page( 'hook', TRUE );
 }
 
 /**
@@ -161,6 +161,6 @@ function telegram_max_webhook_url_get() {
  * @param string $p_url Url of the webhook.
  * @return boolean
  */
-function telegram_max_webhook_url_is_valid( $p_url ) {
+function telegram_webhook_url_is_valid( $p_url ) {
 	return 1 === preg_match( '#^https://[^/:?]+/#i', $p_url );
 }

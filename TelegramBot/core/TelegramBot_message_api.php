@@ -91,7 +91,7 @@ function telegram_message_user_mention( $p_bug_id, $p_mention_user_ids, $p_messa
             continue;
         }
 
-        if( empty( messenger_user_addresses( $t_mention_user_id ) ) ) {
+        if( empty( messenger_user_chats( $t_mention_user_id ) ) ) {
             continue;
         }
 
@@ -233,7 +233,7 @@ function telegram_message_bugnote_add_generic( $p_bugnote_id, $p_files = array()
  */
 function telegram_message_bug_info_to_one_user( array $p_visible_bug_data, $p_message_id, $p_user_id, array $p_header_optional_params = array() ) {
     # check whether the message should be sent
-    if( !messenger_notifications_enabled() || empty( messenger_user_addresses( $p_user_id ) ) ) {
+    if( !messenger_notifications_enabled() || empty( messenger_user_chats( $p_user_id ) ) ) {
         return;
     }
 
@@ -555,7 +555,7 @@ function telegram_message_collect_recipients( $p_bug_id, $p_notify_type, array $
         }
 
         # Finally, let's get their emails, if they've set one
-        $t_addresses = messenger_user_addresses( $t_id );
+        $t_addresses = messenger_user_chats( $t_id );
         if( empty( $t_addresses ) ) {
             plugin_log_event( sprintf( 'Issue = #%d, drop @U%d (no messenger account)', $p_bug_id, $t_id ) );
         } else {
@@ -661,23 +661,23 @@ function telegram_message_relationship_child_resolved_closed( $p_bug_id, $p_mess
  * becomes a note of the issue.
  *
  * @param integer $p_bug_id  Issue the message is about.
- * @param string  $p_address Address of the chat.
+ * @param string  $p_chat_id Chat: the user id of MAX.
  * @param string  $p_msg_id  Message sent.
  * @return boolean
  */
-function telegram_message_realatationship_add( $p_bug_id, $p_address, $p_msg_id ) {
+function telegram_message_link_add( $p_bug_id, $p_chat_id, $p_msg_id ) {
     $t_message_link_table = plugin_table( 'message_link' );
 
-    list( $t_transport, $t_chat_id ) = messenger_address_parse( $p_address );
+    $t_chat_id = (string)$p_chat_id;
 
     db_param_push();
 
     $t_query = "INSERT INTO $t_message_link_table
-                                                ( bug_id, transport, chat_id, message_id )
+                                                ( bug_id, chat_id, message_id )
                                               VALUES
-                                                ( " . db_param() . ',' . db_param() . ',' . db_param() . ',' . db_param() . ')';
+                                                ( " . db_param() . ',' . db_param() . ',' . db_param() . ')';
 
-    db_query( $t_query, array( (int)$p_bug_id, $t_transport, (string)$t_chat_id, (string)$p_msg_id ) );
+    db_query( $t_query, array( (int)$p_bug_id, $t_chat_id, (string)$p_msg_id ) );
 
     return TRUE;
 }
@@ -685,20 +685,20 @@ function telegram_message_realatationship_add( $p_bug_id, $p_address, $p_msg_id 
 /**
  * Forget the messages about the issues sent to a chat.
  *
- * @param string $p_address Address of the chat.
+ * @param string $p_chat_id Chat: the user id of MAX.
  * @return boolean
  */
-function telegram_message_realatationship_delete( $p_address ) {
+function telegram_message_link_delete( $p_chat_id ) {
     $t_message_link_table = plugin_table( 'message_link' );
 
-    list( $t_transport, $t_chat_id ) = messenger_address_parse( $p_address );
+    $t_chat_id = (string)$p_chat_id;
 
     db_param_push();
 
     $t_query = "DELETE FROM $t_message_link_table
-			WHERE transport=" . db_param() . ' AND chat_id=' . db_param();
+			WHERE chat_id=" . db_param();
 
-    db_query( $t_query, array( $t_transport, (string)$t_chat_id ) );
+    db_query( $t_query, array( $t_chat_id ) );
 
     return true;
 }
@@ -706,22 +706,22 @@ function telegram_message_realatationship_delete( $p_address ) {
 /**
  * The issue a message of the bot is about.
  *
- * @param string $p_address Address of the chat.
+ * @param string $p_chat_id Chat: the user id of MAX.
  * @param string $p_msg_id  Message of the bot.
  * @return integer Issue id, 0 when the message is about no issue.
  */
-function bug_get_id_from_message_id( $p_address, $p_msg_id ) {
+function telegram_message_link_bug_get( $p_chat_id, $p_msg_id ) {
     $t_message_link_table = plugin_table( 'message_link' );
 
-    list( $t_transport, $t_chat_id ) = messenger_address_parse( $p_address );
+    $t_chat_id = (string)$p_chat_id;
 
     db_param_push();
 
     $t_query = "SELECT bug_id
 			FROM $t_message_link_table
-			WHERE transport=" . db_param() . ' AND chat_id=' . db_param() . ' AND message_id=' . db_param();
+			WHERE chat_id=" . db_param() . ' AND message_id=' . db_param();
 
-    $t_result = db_query( $t_query, array( $t_transport, (string)$t_chat_id, (string)$p_msg_id ) );
+    $t_result = db_query( $t_query, array( $t_chat_id, (string)$p_msg_id ) );
 
     $t_row = db_fetch_array( $t_result );
 

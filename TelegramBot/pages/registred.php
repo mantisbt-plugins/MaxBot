@@ -37,26 +37,16 @@ if( TELEGRAM_REGISTRATION_PIN == (int) plugin_config_get( 'registration_method' 
     return;
 }
 
-# The invitations sent before the messengers carry the telegram user id alone
-$f_transport  = gpc_get_string( 'transport', MESSENGER_TRANSPORT_DEFAULT );
-$f_account_id = gpc_get_string( 'account_id', '' );
-
-if( is_blank( $f_account_id ) ) {
-    $f_account_id = (string)gpc_get_int( 'telegram_user_id' );
-}
-
+$f_account_id   = gpc_get_string( 'account_id', '' );
 $f_is_confirmed = gpc_get_bool( '_confirmed', FALSE );
 
-# Both values travel through the browser and end up in the database and in a chat address
-# A link of a messenger switched off since then binds nothing
-if( !telegram_transport_is_enabled( $f_transport ) || !preg_match( '/^[0-9A-Za-z_.-]{1,64}$/', $f_account_id ) ) {
+# The value travels through the browser and ends up in the database and in a chat id
+if( !preg_match( '/^[0-9A-Za-z_.-]{1,64}$/', $f_account_id ) ) {
     error_parameters( 'account_id' );
     trigger_error( ERROR_GPC_VAR_NOT_FOUND, ERROR );
 }
 
-helper_ensure_telegram_bot_registred_confirmed(
-        sprintf( plugin_lang_get( 'user_relationship_question_messenger' ), string_display_line( messenger_transport( $f_transport )->title() ) )
-);
+helper_ensure_telegram_bot_registred_confirmed( plugin_lang_get( 'user_relationship_question' ) );
 
 # The account id travels through the browser, so a chat already bound to somebody
 # else must not be relinked: its owner would end up working in the bot on behalf of the
@@ -66,11 +56,11 @@ if( $f_is_confirmed ) {
     # to obtain it, so a forged confirmation cannot bind a foreign chat to the session
     form_security_validate( 'plugin_TelegramBot_registred' );
 
-    $t_associated_user_id = telegram_account_user_get( $f_transport, $f_account_id );
+    $t_associated_user_id = telegram_account_user_get( $f_account_id );
 
     if( $t_associated_user_id != 0 && $t_associated_user_id != auth_get_current_user_id() ) {
-        plugin_log_event( 'Registration Error! Account ' . messenger_address_make( $f_transport, $f_account_id ) . ' is already mapped to mantisbt user ' . user_get_username( $t_associated_user_id ) );
-        plugin_error( 'ERROR_TG_USER_ALREADY_ASSOCIATED', ERROR );
+        plugin_log_event( 'Registration Error! Account ' . $f_account_id . ' is already mapped to mantisbt user ' . user_get_username( $t_associated_user_id ) );
+        plugin_error( 'ERROR_USER_ALREADY_ASSOCIATED', ERROR );
     }
 }
 
@@ -84,15 +74,15 @@ if( $f_is_confirmed ) {
 
     $t_current_user_id = auth_get_current_user_id();
 
-    telegram_account_link( $t_current_user_id, $f_transport, $f_account_id );
+    telegram_account_link( $t_current_user_id, $f_account_id );
 
     # The accounts are linked: the invitation leaves the chat and the PIN code is dropped
-    telegram_registration_complete( $f_transport, $f_account_id );
+    telegram_registration_complete( $f_account_id );
 
-    messenger_send( messenger_address_make( $f_transport, $f_account_id ), array( 'text' => telegram_message_first_text() ) );
+    messenger_send( $f_account_id, array( 'text' => telegram_message_first_text() ) );
 
-    # Back to the chat of the bot in the messenger the link came from
-    $t_bot_chat     = telegram_bot_chat_get( $f_transport );
+    # Back to the chat with the bot
+    $t_bot_chat     = telegram_bot_chat_get();
     $t_redirect_url = $t_bot_chat === NULL ? '' : $t_bot_chat['url'];
     echo '<div class="col-md-12 col-xs-12">';
     echo '<div class="space-10"></div>';

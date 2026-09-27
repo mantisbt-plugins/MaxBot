@@ -122,53 +122,36 @@ function helper_ensure_telegram_bot_registred_confirmed( $p_message ) {
 }
 
 /**
- * Title of a messenger, for the history.
+ * Mark in the history of an issue that something was done through MAX.
  *
- * @param string $p_transport Name of the transport.
- * @return string
- */
-function telegram_history_messenger_title( $p_transport ) {
-    $t_transport = messenger_transport( (string)$p_transport );
-
-    return $t_transport === NULL ? (string)$p_transport : $t_transport->title();
-}
-
-/**
- * Mark in the history of an issue that something was done through a messenger.
+ * The core shows the label of a plugin entry as it is, without parameters; the
+ * value names the messenger, the core writes no entry whose values do not differ.
  *
- * The core shows the label of a plugin entry as it is, without parameters, so
- * the label is the same for every messenger and the messenger goes into the
- * value. The entries written before carry the labels "via Telegram", which stay
- * in the language files for them.
- *
- * @param integer $p_bug_id    Issue.
- * @param string  $p_action    'issue_created', 'note_added' or 'file_added'.
- * @param string  $p_transport Name of the transport.
- * @param string  $p_detail    What the entry is about beside the messenger: the note.
+ * @param integer $p_bug_id Issue.
+ * @param string  $p_action 'issue_created', 'note_added' or 'file_added'.
+ * @param string  $p_detail What the entry is about beside the messenger: the note.
  * @return void
  */
-function telegram_history_log( $p_bug_id, $p_action, $p_transport, $p_detail = '' ) {
-    $t_value = telegram_history_messenger_title( $p_transport );
+function telegram_history_log( $p_bug_id, $p_action, $p_detail = '' ) {
+    $t_value = 'MAX';
 
     if( !is_blank( $p_detail ) ) {
         $t_value .= ' ' . $p_detail;
     }
 
-    # the core writes an entry whose values differ only: the value is never empty
-    plugin_history_log( $p_bug_id, 'history_messenger_' . $p_action, '', $t_value );
+    plugin_history_log( $p_bug_id, 'history_' . $p_action, '', $t_value );
 }
 
 /**
  * Add a note and the files of a message to an issue.
  *
- * @param integer $p_bug_id    Issue.
- * @param string  $p_text      Text of the note.
- * @param array   $p_files     Files in the shape of an upload of a form.
- * @param string  $p_duration  Time tracked.
- * @param string  $p_transport Name of the transport the message came from.
+ * @param integer $p_bug_id   Issue.
+ * @param string  $p_text     Text of the note.
+ * @param array   $p_files    Files in the shape of an upload of a form.
+ * @param string  $p_duration Time tracked.
  * @return integer|null Id of the note, NULL when only files were added.
  */
-function bugnote_add_from_telegram( $p_bug_id, $p_text = '', $p_files = array(), $p_duration = '0:00', $p_transport = MESSENGER_TRANSPORT_DEFAULT ) {
+function bugnote_add_from_telegram( $p_bug_id, $p_text = '', $p_files = array(), $p_duration = '0:00' ) {
 
     $t_query = array( 'issue_id' => $p_bug_id );
 
@@ -187,7 +170,7 @@ function bugnote_add_from_telegram( $p_bug_id, $p_text = '', $p_files = array(),
 
         # The key of the entry is localized by the core when the history is shown,
         # so the values may carry language neutral data only
-        telegram_history_log( $p_bug_id, 'file_added', $p_transport );
+        telegram_history_log( $p_bug_id, 'file_added' );
 
         # Files without text produce no bugnote, so there is no note id to link to
         return null;
@@ -211,10 +194,10 @@ function bugnote_add_from_telegram( $p_bug_id, $p_text = '', $p_files = array(),
         $t_command = new IssueNoteAddCommand( $t_data );
         $t_noteId = $t_command->execute();
         
-        telegram_history_log( $p_bug_id, 'note_added', $p_transport, '~' . (int)$t_noteId['id'] );
+        telegram_history_log( $p_bug_id, 'note_added', '~' . (int)$t_noteId['id'] );
 
         if( count( $p_files ) > 0 ) {
-            telegram_history_log( $p_bug_id, 'file_added', $p_transport );
+            telegram_history_log( $p_bug_id, 'file_added' );
         }
 
         return (int)$t_noteId['id'];
@@ -318,7 +301,7 @@ function telegram_update_error_notify( TelegramBotUpdate $p_update, $p_exception
         if( $p_update->kind == TelegramBotUpdate::KIND_CALLBACK ) {
             # The regular path answers the query at the end of the callback branch, and a
             # query answered twice is simply refused by the messenger, which does no harm here
-            messenger_answer_callback( $p_update->transport, $p_update->callback_id, $t_text );
+            messenger_answer_callback( $p_update->callback_id, $t_text );
         } else if( $p_update->message !== NULL ) {
             # Not a reply: the dispatcher removes the messages answering the wizard,
             # and a reply to a message already gone is refused by the messenger
@@ -337,8 +320,7 @@ function telegram_update_error_notify( TelegramBotUpdate $p_update, $p_exception
  * user two views of it contradicting each other.
  *
  * @param string $p_message_id Message the callback query has arrived from.
- * @param string $p_chat_id    Address of the chat of the message: the ids of the
- *                             messages are only unique within a chat.
+ * @param string $p_chat_id    Chat of the message.
  * @return boolean TRUE when there is no draft yet or the draft belongs to the message.
  */
 function telegram_draft_belongs_to_message( $p_message_id, $p_chat_id ) {
@@ -359,7 +341,7 @@ function telegram_draft_belongs_to_message( $p_message_id, $p_chat_id ) {
  *
  * @param string $p_key        Config key of the dialog.
  * @param string $p_message_id Message the callback query has arrived from.
- * @param string $p_chat_id    Address of the chat of the message.
+ * @param string $p_chat_id    Chat of the message.
  * @return boolean TRUE as well when the dialog has no card yet.
  */
 function telegram_card_is( $p_key, $p_message_id, $p_chat_id ) {
@@ -372,40 +354,7 @@ function telegram_card_is( $p_key, $p_message_id, $p_chat_id ) {
     }
 
     return $t_message_id === (string)$p_message_id
-            && ( is_blank( $t_chat_id ) || messenger_address_same( $t_chat_id, $p_chat_id ) );
-}
-
-/**
- * The transport the dialog of the current user is carried on, NULL while no
- * dialog is in progress.
- *
- * A dialog lives on the card it was started from, and its text questions are
- * answered with the messages of the same chat: a message coming from another
- * messenger meanwhile is not an answer.
- *
- * @return string|null Name of the transport.
- */
-function telegram_dialog_transport_get() {
-    $t_user_id = auth_get_current_user_id();
-
-    foreach( array( 'bug_data_draft', 'event_draft', 'status_change_draft' ) as $t_key ) {
-        if( is_blank( (string)plugin_config_get( $t_key, '', FALSE, $t_user_id ) ) ) {
-            continue;
-        }
-
-        $t_chat_id = (string)plugin_config_get( $t_key . '_chat_id', '', FALSE, $t_user_id );
-
-        if( !is_blank( $t_chat_id ) ) {
-            list( $t_transport ) = messenger_address_parse( $t_chat_id );
-
-            # A dialog left in a switched off messenger can never be finished there
-            if( messenger_transport_active( $t_transport ) !== NULL ) {
-                return $t_transport;
-            }
-        }
-    }
-
-    return NULL;
+            && ( is_blank( $t_chat_id ) || $t_chat_id === (string)$p_chat_id );
 }
 
 /**
@@ -425,9 +374,7 @@ function telegram_draft_submit( array $p_bug_data_draft ) {
     $t_answers = telegram_draft_card_text_rebuild( $p_bug_data_draft );
 
     try {
-        list( $t_transport ) = messenger_address_parse( (string)$t_chat_id );
-
-        $t_issue_id = telegram_bug_add( $p_bug_data_draft, $t_transport );
+        $t_issue_id = telegram_bug_add( $p_bug_data_draft );
 
         $t_text  = $t_answers;
         $t_text .= PHP_EOL;
@@ -1704,14 +1651,10 @@ function telegram_bug_report( $p_current_action, TelegramBotMessage $p_card ) {
     return $t_data_send;
 }
 
-#The size of an attachment the bot is able to take: the messenger has a limit
-#of its own on the files it serves to bots, the limit of MantisBT applies when
-#it is the stricter one.
-function telegram_file_max_size( $p_transport = MESSENGER_TRANSPORT_DEFAULT ) {
-    $t_transport = messenger_transport( $p_transport );
-    $t_max_size  = (int)file_get_max_file_size();
-
-    return $t_transport === NULL ? $t_max_size : (int)min( $t_transport->file_size_max(), $t_max_size );
+#The size of an attachment the bot is able to take: MAX has a limit of its own
+#on the files, the limit of MantisBT applies when it is the stricter one.
+function telegram_file_max_size() {
+    return (int)min( MaxBotApi::FILE_SIZE_MAX, (int)file_get_max_file_size() );
 }
 
 #The file types the upload rules of MantisBT leave for the user. The core
@@ -1744,13 +1687,13 @@ function telegram_file_types_format( $p_file_types ) {
     return implode( ', ', $t_types );
 }
 
-#Check a file received from a messenger against the upload rules of MantisBT
-#and the download limit of the messenger. Returns the localized error text or
+#Check a file received from MAX against the upload rules of MantisBT and the
+#limit of MAX. Returns the localized error text or
 #an empty string when the file is accepted. An empty name skips the name
 #checks: a photo gets its name only when it is downloaded.
-function telegram_file_check( $p_file_name, $p_file_size, $p_transport = MESSENGER_TRANSPORT_DEFAULT ) {
+function telegram_file_check( $p_file_name, $p_file_size ) {
 
-    $t_max_file_size = telegram_file_max_size( $p_transport );
+    $t_max_file_size = telegram_file_max_size();
 
     #Both limits mean the same thing to the user - the file will not go through -
     #so the message names the effective one instead of its origin. The size is
@@ -2814,8 +2757,6 @@ function telegram_add_comment( $p_current_action, $p_content ) {
             $t_text            = telegram_message_text_get( $p_content );
             $t_file_for_attach = array();
 
-            list( $t_note_transport ) = messenger_address_parse( $p_content === NULL ? '' : $p_content->chat_id );
-
             if( $p_content !== NULL && $p_content->file !== NULL ) {
                 $t_error_text      = '';
                 $t_file_for_attach = messenger_file_fetch( $p_content->file, $t_error_text );
@@ -2831,7 +2772,7 @@ function telegram_add_comment( $p_current_action, $p_content ) {
             }
 
             try {
-                $t_note_id = bugnote_add_from_telegram( $t_bug_id, $t_text, $t_file_for_attach, '0:00', $t_note_transport );
+                $t_note_id = bugnote_add_from_telegram( $t_bug_id, $t_text, $t_file_for_attach, '0:00' );
 
                 # A bugnote gets a direct link to its anchor, a bare attachment
                 # only has the issue page to point at
@@ -2969,7 +2910,7 @@ function telegrambot_check_default( $p_var, $p_val = true, $p_strict = true ) {
  * @return array Data of the answer, 'chat_id' being the private chat of the sender.
  */
 function telegramMsg_run_command( TelegramBotUpdate $p_update ) {
-        $t_chat_id = messenger_address_make( $p_update->transport, $p_update->account_id );
+        $t_chat_id = (string)$p_update->account_id;
 
         switch( $p_update->command ) {
                 case 'start':
@@ -2977,9 +2918,8 @@ function telegramMsg_run_command( TelegramBotUpdate $p_update ) {
                         break;
 
                 case 'stop':
-                        # only the messenger the command came from is unlinked, the answer
-                        # below is the notification, no second message needed
-                        telegram_bot_user_unlink( auth_get_current_user_id(), /* notify */ FALSE, $p_update->transport );
+                        # the answer below is the notification, no second message needed
+                        telegram_bot_user_unlink( auth_get_current_user_id(), /* notify */ FALSE );
 
                         $t_text = plugin_lang_get( 'end_message' );
                         break;
@@ -3011,7 +2951,7 @@ function telegram_mantis_url_get() {
 }
 
 /**
- * The MantisBT account the telegram one is linked to, as the /start answer shows it.
+ * The MantisBT account the MAX one is linked to, as the /start answer shows it.
  *
  * @param integer $p_user_id MantisBT user id.
  * @return string
@@ -3033,7 +2973,7 @@ function telegram_user_info_text( $p_user_id ) {
 }
 
 /**
- * The greeting the bot sends once a telegram account is linked to a MantisBT one.
+ * The greeting the bot sends once a MAX account is linked to a MantisBT one.
  *
  * @return string
  */

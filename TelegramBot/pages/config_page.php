@@ -30,7 +30,7 @@ telegrambot_print_menu_config( 'config_page' );
         <p><i class="fa fa-info-circle"></i>
             <?php echo plugin_lang_get( 'help_registration_bot_header' ) ?>
         </p>
-        <p><?php echo sprintf(plugin_lang_get('help_registration_bot_message'), '<a href="' . string_attribute( plugin_config_get('bot_father_url') ) . '" target="_blank">' . string_display_line( plugin_config_get('bot_father_url') ) . '</a>') ?></p>
+        <p><?php echo plugin_lang_get( 'help_registration_bot_message' ) ?></p>
     </div>
     
     <div class="form-container">
@@ -41,7 +41,7 @@ telegrambot_print_menu_config( 'config_page' );
                 <div class="widget-header widget-header-small">
                     <h4 class="widget-title lighter">
                         <i class="ace-icon fa fa-cubes"></i>
-                        <?php echo string_display_line( messenger_transport( 'tg' )->title() ) . ': ' . plugin_lang_get( 'credential_config_title' ) ?>
+                        <?php echo plugin_lang_get( 'credential_config_title' ) ?>
                     </h4>
                 </div>
                 
@@ -55,21 +55,20 @@ telegrambot_print_menu_config( 'config_page' );
 
                                 <tr>
                                     <th class="category" width="5%">
-                                        <span class="required">*</span><?php echo ' ' . plugin_lang_get( 'config_bot_username' ) ?>
-                                        <br><span class="small"><?php echo plugin_lang_get( 'config_bot_username_notice' ) ?></span>
+                                        <span class="required">*</span><?php echo ' ' . plugin_lang_get( 'config_api_key' ) ?>
+                                        <br><span class="small"><?php echo plugin_lang_get( 'config_api_key_notice' ) ?></span>
                                     </th>
                                     <td class="center" colspan="1">
-                                        <textarea name="bot_username" id="bot_username" class="form-control" rows="1" required><?php echo string_textarea( plugin_config_get( 'bot_name' ) ) ?></textarea>
+                                        <textarea name="api_key" id="api_key" class="form-control" rows="1" required><?php echo string_textarea( plugin_config_get( 'api_key' ) ) ?></textarea>
                                     </td>
                                 </tr>
 
                                 <tr>
                                     <th class="category" width="5%">
-                                        <span class="required">*</span><?php echo ' ' . plugin_lang_get( 'config_api_key' ) ?>
+                                        <?php echo plugin_lang_get( 'config_bot_name' ) ?>
+                                        <br><span class="small"><?php echo plugin_lang_get( 'config_bot_name_notice' ) ?></span>
                                     </th>
-                                    <td class="center" colspan="1"> 
-                                        <textarea name="api_key" id="api_key" class="form-control" rows="1" required><?php echo string_textarea( plugin_config_get( 'api_key' ) ) ?></textarea>
-                                    </td>
+                                    <td class="left" colspan="1"><?php echo telegram_bot_chat_link_html() ?></td>
                                 </tr>
                             </table>
                         </div>
@@ -246,160 +245,23 @@ telegrambot_print_menu_config( 'config_page' );
                                     <col style="width:25%" />
                                 </colgroup>
                                 
+                                <?php $t_script = plugin_config_get( 'update_method' ) == 'script'; ?>
                                 <tr>
                                     <th class="category" width="5%">
-                                        <?php echo plugin_lang_get('reinstall_webhook') ?>
-                                        <br><span class="small"><?php echo plugin_lang_get( 'reinstall_webhook_notice' ) ?></span>
+                                        <?php echo plugin_lang_get( 'update_method' ) ?>
+                                        <br><span class="small"><?php echo plugin_lang_get( 'update_method_notice' ) ?></span>
                                     </th>
                                     <td class="left" colspan="1">
-                                        <label><input type="radio" class="ace" name="reinstall_webhook" value="1" <?php echo( ON == (int)plugin_config_get('reinstall_webhook') ) ? 'checked="checked" ' : '' ?>/>
+                                        <label><input type="radio" class="ace" name="update_method" value="webhook" <?php echo $t_script ? '' : 'checked="checked" ' ?>/>
                                             <span class="lbl padding-6"><?php echo 'Webhook' ?></span></label>
-                                        <label><input type="radio" class="ace" name="reinstall_webhook" value="0" <?php echo( OFF == (int)plugin_config_get('reinstall_webhook') ) ? 'checked="checked" ' : '' ?>/>
-                                            <span class="lbl padding-6"><?php echo 'Script' ?></span></label>
-                                    </td>
-                                </tr>
-                                
-                                <?php if( (int)plugin_config_get( 'reinstall_webhook' ) == ON ) { ?>
-                                <tr>
-                                    <th class="category" width="5%">
-                                        <?php echo plugin_lang_get('use_bot_cert_is') ?>
-                                        <br><span class="small"><?php echo plugin_lang_get( 'cert_help' ) ?></span>
-                                    </th>
-                                    <td class="left" colspan="1">
-                                        <label><input type="radio" class="ace" name="use_cert" value="1" <?php echo( ON == (int)plugin_config_get('use_cert') ) ? 'checked="checked" ' : '' ?>/>
-                                            <span class="lbl padding-6"><?php echo lang_get('yes') ?></span></label>
-                                        <label><input type="radio" class="ace" name="use_cert" value="0" <?php echo( OFF == (int)plugin_config_get('use_cert') ) ? 'checked="checked" ' : '' ?>/>
-                                            <span class="lbl padding-6"><?php echo lang_get('no') ?></span></label>
-                                    </td>
-                                </tr>
-                                
-                                <tr>
-                                    <th class="category" width="5%">
-                                        <?php echo plugin_lang_get( 'bot_cert' ) ?>
-                                        <br><span class="small"><?php echo plugin_lang_get( 'bot_cert_help' ) ?></span>
-                                        <br><span class="small"><a href=https://core.telegram.org/bots/self-signed target="_blank">https://core.telegram.org/bots/self-signed</a></span>
-                                    </th>
-                                    <td class="left" colspan="1"> 
-
-                                        <?php
-                                        if( plugin_config_get( 'bot_cert' ) != '' ) {
-                                            echo '<pre><code>' . string_html_specialchars( plugin_config_get('bot_cert') ) . '</code></pre>';
-                                        }
-                                        ?>
-                                        
-                                        <input type= "file" name="bot_cert_file" id="bot_cert_file" accept=".pem,.crt,.cer">
-                                    </td>
-                                </tr>
-                                <?php  } else { ?>
-                                <?php telegram_config_cli_path_row_print() ?>
-                                <tr>
-                                    <th class="category" width="5%">
-					<?php echo plugin_lang_get( 'path_to_crontab_script' ) ?>
-                                        <br><span class="small"><?php echo plugin_lang_get( 'path_to_crontab_script_notice' ) ?></span>
-                                    </th>
-                                    <td class="left" colspan="1"><?php echo dirname( __FILE__, 2 ) . '/scripts/telegram_get_updates.php' ?></td>
-                                </tr>
-
-                                <tr>
-                                    <th class="category" width="5%">
-					<?php echo plugin_lang_get( 'get_updates_timeout_header' ) ?>
-                                    </th>
-                                    <td class="center" colspan="1">
-                                        <input type="number" name="get_updates_timeout" id="get_updates_timeout" class="form-control" min="0" value="<?php echo plugin_config_get( 'get_updates_timeout' ) ?>">
-                                    </td>
-                                </tr>
-
-                                <tr>
-                                    <th class="category" width="5%">
-					<?php echo plugin_lang_get( 'get_updates_run_time_header' ) ?>
-                                    </th>
-                                    <td class="center" colspan="1">
-                                        <input type="number" name="get_updates_run_time" id="get_updates_run_time" class="form-control" min="0" value="<?php echo plugin_config_get( 'get_updates_run_time' ) ?>">
-                                    </td>
-                                </tr>
-
-                                <?php  } ?>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="space-10"></div>
-
-            <?php
-            # The block of MAX is drawn by the stored switch: while MAX is off it is the
-            # switch alone and none of the code of MAX runs
-            $t_max_enabled = ON == (int)plugin_config_get( 'max_enabled' );
-            $t_max         = $t_max_enabled ? messenger_transport( 'max' ) : NULL;
-            ?>
-            <div class="widget-box widget-color-blue2">
-                <div class="widget-header widget-header-small">
-                    <h4 class="widget-title lighter">
-                        <i class="ace-icon fa fa-comments"></i>
-                        <?php echo plugin_lang_get( 'max_config_title' ) ?>
-                    </h4>
-                </div>
-
-                <div class="widget-body">
-                    <div class="widget-main no-padding">
-                        <div class="table-responsive">
-                            <table class="table table-striped table-bordered table-condensed table-hover">
-                                <colgroup>
-                                    <col style="width:25%" />
-                                </colgroup>
-
-                                <tr>
-                                    <th class="category" width="5%">
-                                        <?php echo plugin_lang_get( 'max_enabled' ) ?>
-                                        <br><span class="small"><?php echo plugin_lang_get( 'max_enabled_notice' ) ?></span>
-                                    </th>
-                                    <td class="left" colspan="1">
-                                        <label><input type="radio" class="ace" name="max_enabled" value="1" <?php echo $t_max_enabled ? 'checked="checked" ' : '' ?>/>
-                                            <span class="lbl padding-6"><?php echo lang_get( 'yes' ) ?></span></label>
-                                        <label><input type="radio" class="ace" name="max_enabled" value="0" <?php echo $t_max_enabled ? '' : 'checked="checked" ' ?>/>
-                                            <span class="lbl padding-6"><?php echo lang_get( 'no' ) ?></span></label>
-                                    </td>
-                                </tr>
-
-                                <?php
-                                if( $t_max !== NULL ) {
-                                    $t_max_script = plugin_config_get( 'max_update_method' ) == 'script';
-                                ?>
-                                <tr>
-                                    <th class="category" width="5%">
-                                        <span class="required">*</span><?php echo ' ' . plugin_lang_get( 'max_api_key' ) ?>
-                                        <br><span class="small"><?php echo plugin_lang_get( 'max_api_key_notice' ) ?></span>
-                                    </th>
-                                    <td class="center" colspan="1">
-                                        <textarea name="max_api_key" id="max_api_key" class="form-control" rows="1"><?php echo string_textarea( plugin_config_get( 'max_api_key' ) ) ?></textarea>
-                                    </td>
-                                </tr>
-
-                                <tr>
-                                    <th class="category" width="5%">
-                                        <?php echo plugin_lang_get( 'max_bot_name' ) ?>
-                                        <br><span class="small"><?php echo plugin_lang_get( 'max_bot_name_notice' ) ?></span>
-                                    </th>
-                                    <td class="left" colspan="1"><?php echo telegram_bot_chat_link_html( 'max' ) ?></td>
-                                </tr>
-
-                                <tr>
-                                    <th class="category" width="5%">
-                                        <?php echo plugin_lang_get( 'reinstall_webhook' ) ?>
-                                        <br><span class="small"><?php echo plugin_lang_get( 'max_update_method_notice' ) ?></span>
-                                    </th>
-                                    <td class="left" colspan="1">
-                                        <label><input type="radio" class="ace" name="max_update_method" value="webhook" <?php echo $t_max_script ? '' : 'checked="checked" ' ?>/>
-                                            <span class="lbl padding-6"><?php echo 'Webhook' ?></span></label>
-                                        <label><input type="radio" class="ace" name="max_update_method" value="script" <?php echo $t_max_script ? 'checked="checked" ' : '' ?>/>
+                                        <label><input type="radio" class="ace" name="update_method" value="script" <?php echo $t_script ? 'checked="checked" ' : '' ?>/>
                                             <span class="lbl padding-6"><?php echo 'Script' ?></span></label>
                                     </td>
                                 </tr>
 
                                 <?php
-                                if( !$t_max_script ) {
-                                    $t_max_webhook_url = telegram_max_webhook_url_get();
+                                if( !$t_script ) {
+                                    $t_webhook_url = telegram_webhook_url_get();
                                 ?>
                                 <tr>
                                     <th class="category" width="5%">
@@ -408,54 +270,47 @@ telegrambot_print_menu_config( 'config_page' );
                                     </th>
                                     <td class="left" colspan="1">
                                         <?php
-                                        echo string_display_line( $t_max_webhook_url );
+                                        echo string_display_line( $t_webhook_url );
 
-                                        if( !telegram_max_webhook_url_is_valid( $t_max_webhook_url ) ) {
+                                        if( !telegram_webhook_url_is_valid( $t_webhook_url ) ) {
                                             echo '<br><span class="small red">' . plugin_lang_get( 'max_webhook_url_invalid' ) . '</span>';
                                         }
                                         ?>
                                     </td>
                                 </tr>
-                                <?php
-                                } else {
-                                    # The address is shared with the script of Telegram, which shows it
-                                    # itself when it polls as well
-                                    if( (int)plugin_config_get( 'reinstall_webhook' ) == ON ) {
-                                        telegram_config_cli_path_row_print();
-                                    }
-                                ?>
+                                <?php } else { ?>
+                                <?php telegram_config_cli_path_row_print() ?>
                                 <tr>
                                     <th class="category" width="5%">
                                         <?php echo plugin_lang_get( 'path_to_crontab_script' ) ?>
                                         <br><span class="small"><?php echo plugin_lang_get( 'path_to_crontab_script_notice' ) ?></span>
                                     </th>
-                                    <td class="left" colspan="1"><code><?php echo string_display_line( '* * * * * php ' . dirname( __FILE__, 2 ) . '/scripts/max_get_updates.php' ) ?></code></td>
+                                    <td class="left" colspan="1"><code><?php echo string_display_line( '* * * * * php ' . dirname( __FILE__, 2 ) . '/scripts/get_updates.php' ) ?></code></td>
                                 </tr>
 
                                 <tr>
                                     <th class="category" width="5%">
-                                        <?php echo plugin_lang_get( 'max_get_updates_timeout_header' ) ?>
+                                        <?php echo plugin_lang_get( 'get_updates_timeout_header' ) ?>
                                     </th>
                                     <td class="center" colspan="1">
-                                        <input type="number" name="max_get_updates_timeout" id="max_get_updates_timeout" class="form-control" min="0" max="<?php echo MaxTransport::POLL_TIMEOUT_MAX ?>" value="<?php echo (int)plugin_config_get( 'max_get_updates_timeout' ) ?>">
+                                        <input type="number" name="get_updates_timeout" id="get_updates_timeout" class="form-control" min="0" max="<?php echo MaxBotApi::POLL_TIMEOUT_MAX ?>" value="<?php echo (int)plugin_config_get( 'get_updates_timeout' ) ?>">
                                     </td>
                                 </tr>
 
                                 <tr>
                                     <th class="category" width="5%">
-                                        <?php echo plugin_lang_get( 'max_get_updates_run_time_header' ) ?>
+                                        <?php echo plugin_lang_get( 'get_updates_run_time_header' ) ?>
                                     </th>
                                     <td class="center" colspan="1">
-                                        <input type="number" name="max_get_updates_run_time" id="max_get_updates_run_time" class="form-control" min="0" value="<?php echo (int)plugin_config_get( 'max_get_updates_run_time' ) ?>">
+                                        <input type="number" name="get_updates_run_time" id="get_updates_run_time" class="form-control" min="0" value="<?php echo (int)plugin_config_get( 'get_updates_run_time' ) ?>">
                                     </td>
                                 </tr>
                                 <?php
                                 }
 
                                 # What MAX itself knows, asked live: only with a token to ask it by
-                                if( $t_max->is_enabled() ) {
-                                    telegram_max_subscription_rows_print( $t_max );
-                                }
+                                if( messenger_api()->is_enabled() ) {
+                                    telegram_subscription_rows_print( messenger_api() );
                                 }
                                 ?>
                             </table>

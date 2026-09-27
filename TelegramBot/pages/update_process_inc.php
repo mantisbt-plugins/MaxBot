@@ -19,7 +19,7 @@ if( !defined( 'UPDATE_PROCESS_INC_ALLOW' ) ) {
 }
 
 # The updates are processed out of $t_results, a list of TelegramBotUpdate built by
-# the transport the updates came from: the dispatcher knows nothing of the messenger.
+# MaxBotApi out of the webhook request or the long polling answer.
 #
 # An update is processed on its own: a failure of one of them is reported to its
 # sender and the batch goes on. The fatal errors of the core are signalled with
@@ -41,9 +41,9 @@ try {
                 continue;
             }
 
-            //We check the binding of the messenger account to the current user account mantisbt and if it is not linked,
+            //We check the binding of the MAX account to the current user account mantisbt and if it is not linked,
             //then we issue an invitation to bind and skip processing the current update.
-            if( !auth_ensure_telegram_user_authenticated( $t_update->transport, $t_update->account_id, $t_update->lang ) ) {
+            if( !auth_ensure_telegram_user_authenticated( $t_update->account_id, $t_update->lang ) ) {
                 continue;
             }
 
@@ -64,7 +64,7 @@ try {
                         if( $t_message->file !== NULL ) {
                             #A photo has no name at this point, its name checks run on the
                             #file path when the draft or the note picks the file up
-                            $t_error_text = telegram_file_check( $t_message->file->name, $t_message->file->size, $t_update->transport );
+                            $t_error_text = telegram_file_check( $t_message->file->name, $t_message->file->size );
 
                             if( $t_error_text != '' ) {
                                 $t_data = [
@@ -77,20 +77,6 @@ try {
                         }
 
                         $t_user_id = auth_get_current_user_id();
-
-                        # The dialog in progress takes its answers from the chat it was started
-                        # in, a message of another messenger is neither an answer nor a new start
-                        $t_dialog_transport = telegram_dialog_transport_get();
-
-                        if( $t_dialog_transport !== NULL && $t_dialog_transport != $t_update->transport ) {
-                            $t_other = messenger_transport( $t_dialog_transport );
-
-                            messenger_send( $t_message->chat_id, array(
-                                                      'text'                => sprintf( plugin_lang_get( 'dialog_other_transport' ), $t_other === NULL ? $t_dialog_transport : $t_other->title() ),
-                                                      'reply_to_message_id' => $t_message->message_id,
-                            ) );
-                            break;
-                        }
 
                         # The caption of a file is not an answer to a question of a dialog
                         $t_answer_text = $t_message->file === NULL ? $t_message->text : '';
@@ -195,7 +181,7 @@ try {
                     }
 
             //REPLY TO MESSAGE
-                    $t_bug_id = bug_get_id_from_message_id( $t_message->reply_to->chat_id, $t_message->reply_to->message_id );
+                    $t_bug_id = telegram_message_link_bug_get( $t_message->reply_to->chat_id, $t_message->reply_to->message_id );
 
                     $t_data = telegram_add_comment( array( 'set_bug' => $t_bug_id ), $t_message );
 
@@ -214,7 +200,7 @@ try {
                     //carry no action, such a press is only acknowledged to drop the spinner.
                     //A button of a message gone from the chat has no card to redraw either.
                     if( !is_array( $t_data ) || $t_message === NULL ) {
-                        messenger_answer_callback( $t_update->transport, $t_update->callback_id );
+                        messenger_answer_callback( $t_update->callback_id );
                         break;
                     }
 
@@ -292,15 +278,15 @@ try {
                     }
 
                     //A callback query can only be answered once, so it is done after the whole callback is processed
-                    messenger_answer_callback( $t_update->transport, $t_update->callback_id, telegram_callback_alert_get() );
+                    messenger_answer_callback( $t_update->callback_id, telegram_callback_alert_get() );
 
                     break;
             //END CALLBACK
 
                 default:
-                    plugin_log_event( 'ERROR! Bad request. The content of the update from ' . $t_update->transport . ' is not implemented.' );
+                    plugin_log_event( 'ERROR! Bad request. The content of the update is not implemented.' );
 
-                    $t_chat_id = $t_message === NULL ? messenger_address_make( $t_update->transport, $t_update->account_id ) : $t_message->chat_id;
+                    $t_chat_id = $t_message === NULL ? (string)$t_update->account_id : $t_message->chat_id;
 
                     messenger_send( $t_chat_id, array( 'text' => plugin_lang_get( 'error_content_type' ) ) );
             }

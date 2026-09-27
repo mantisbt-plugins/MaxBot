@@ -16,18 +16,18 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * A message of a chat, as the dialogs see it whatever the messenger.
+ * A message of a chat, as the dialogs see it.
  */
 class TelegramBotMessage {
 
         /**
-         * Address of the chat, see messenger_address_make().
+         * Chat of the message: the user id of MAX the bot talks to.
          * @var string
          */
         public $chat_id = '';
 
         /**
-         * Id of the message within its transport.
+         * Id of the message, unique across the chats.
          * @var string
          */
         public $message_id = '';

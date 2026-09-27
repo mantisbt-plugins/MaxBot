@@ -17,7 +17,7 @@
 
 /**
  * An incoming update of a messenger: a message, a command or the press of a
- * button, see TelegramBotTransport::updates_parse().
+ * button, see MaxBotApi::updates_parse().
  */
 class TelegramBotUpdate {
 
@@ -37,19 +37,13 @@ class TelegramBotUpdate {
         public $kind = self::KIND_UNSUPPORTED;
 
         /**
-         * Name of the transport the update came from.
-         * @var string
-         */
-        public $transport = '';
-
-        /**
-         * Account of the messenger the update came from, empty when unknown.
+         * Account of MAX the update came from, empty when unknown.
          * @var string
          */
         public $account_id = '';
 
         /**
-         * Language code of the account, NULL when the messenger gives none.
+         * Language code of the account, NULL when MAX gives none.
          * @var string|null
          */
         public $lang = NULL;

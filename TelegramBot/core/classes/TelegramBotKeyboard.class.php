@@ -16,12 +16,11 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Inline keyboard of a message, independent of the messenger it goes to.
+ * Inline keyboard of a message, the neutral form MaxBotApi turns into the markup of MAX.
  *
  * A button is an array of its label and of its action: either
  * array( 'text' => ..., 'callback_data' => ... ) for a button calling the bot
- * back or array( 'text' => ..., 'url' => ... ) for a link. The transport turns
- * the rows into the markup of its messenger.
+ * back or array( 'text' => ..., 'url' => ... ) for a link.
  */
 class TelegramBotKeyboard {
 

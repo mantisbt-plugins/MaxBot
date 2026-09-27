@@ -1050,9 +1050,7 @@ function telegram_event_draft_submit( array $p_draft ) {
     if( function_exists( 'calendar_api_event_history_log' ) ) {
         try {
             # the value is the messenger: the label of the entry takes no parameters
-            list( $t_transport ) = messenger_address_parse( (string)plugin_config_get( 'event_draft_chat_id', '', FALSE, $t_user_id ) );
-
-            calendar_api_event_history_log( $t_event_id, 'history_messenger_event_created', telegram_history_messenger_title( $t_transport ) );
+            calendar_api_event_history_log( $t_event_id, 'history_event_created', 'MAX' );
         } catch( Mantis\Exceptions\MantisException $t_error ) {
             plugin_log_event( sprintf( 'History of event #%d not written: %s', $t_event_id, $t_error->getMessage() ) );
         }
@@ -1846,7 +1844,7 @@ function telegram_calendar_collect_recipients( array $p_event_row, $p_action, $p
             continue;
         }
 
-        if( empty( messenger_user_addresses( $t_user_id ) ) ) {
+        if( empty( messenger_user_chats( $t_user_id ) ) ) {
             plugin_log_event( sprintf( 'Calendar event = #%d, drop @U%d (no messenger account)', $t_event_id, $t_user_id ) );
             continue;
         }
@@ -2020,7 +2018,7 @@ function telegram_calendar_member_notified( array $p_event_row, $p_user_id, $p_a
         return FALSE;
     }
 
-    return !empty( messenger_user_addresses( $p_user_id ) );
+    return !empty( messenger_user_chats( $p_user_id ) );
 }
 
 /**
@@ -2156,7 +2154,7 @@ function telegram_calendar_event_notification_send( $p_event_id, $p_project_id, 
     }
 
     # the transport puts the text into the caption of the file where it fits
-    foreach( messenger_user_addresses( $p_user_id ) as $t_address ) {
+    foreach( messenger_user_chats( $p_user_id ) as $t_address ) {
         if( empty( messenger_send_document( $t_address, $t_ics['filename'], $t_ics['content'], $t_text_data ) ) ) {
             plugin_log_event( sprintf( 'ERROR! Calendar event = #%d, the file did not reach %s', (int)$p_event_id, $t_address ) );
         }
@@ -2193,7 +2191,7 @@ function telegram_calendar_message_reminder( $p_event_id, $p_occurrence, $p_user
         return;
     }
 
-    if( empty( messenger_user_addresses( (int)$p_user_id ) ) ) {
+    if( empty( messenger_user_chats( (int)$p_user_id ) ) ) {
         return;
     }
 

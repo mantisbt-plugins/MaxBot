@@ -18,7 +18,7 @@ auth_reauthenticate();
 access_ensure_global_level( config_get( 'manage_plugin_threshold' ) );
 
 /**
- * Print the row telling when the long polling script of a messenger last ran.
+ * Print the row telling when the long polling script last ran.
  *
  * The script stamps every start, so a missing or stale value means it is not
  * scheduled - the schedule itself cannot be read from the web.
@@ -64,114 +64,8 @@ telegrambot_print_menu_config( 'monitor_page' );
             <div class="widget-box widget-color-blue2">
                 <div class="widget-header widget-header-small">
                     <h4 class="widget-title lighter">
-                        <i class="ace-icon fa fa-telegram"></i>
-                        <?php echo string_display_line( messenger_transport( 'tg' )->title() ) ?>
-                    </h4>
-                </div>
-
-                <div class="widget-body">
-                    <div class="widget-main no-padding">
-                        <div class="table-responsive">
-                            <table class="table table-striped table-bordered table-condensed table-hover">
-                                <colgroup>
-                                    <col style="width:25%" />
-                                </colgroup>
-
-
-                                <?php
-                                $t_bot_name = plugin_config_get( 'bot_name' );
-                                $t_api_key  = plugin_config_get( 'api_key' );
-
-                                if( $t_bot_name && $t_api_key ) {
-
-                                    try {
-                                        $t_result      = messenger_transport( 'tg' )->webhook_info();
-                                        $t_webhook_url = $t_result['url'];
-                                        $t_pending_update_count = $t_result['pending_update_count'];
-                                        $t_last_error_date = $t_result['last_error_date'];
-                                        $t_last_error_message = $t_result['last_error_message'];
-                                        $t_is_self_signed_cert = $t_result['has_custom_certificate'];
-                                    } catch( Exception $t_errors ) {
-                                        # network errors (no route to api.telegram.org, timeout, proxy)
-                                        $t_webhook_url = $t_errors->getMessage();
-                                    }
-
-                                        echo '<tr>';
-                                        echo '<td class="category" width="50%">';
-                                        echo plugin_lang_get( 'current_config' );
-                                        echo '</td>';
-                                        echo '<td colspan="2">';
-                                        echo is_blank( $t_webhook_url ) ? plugin_lang_get( 'monitor_page_url_not_set' ) : string_display_line( $t_webhook_url );
-                                        echo '</td>';
-                                        echo '</tr>';
-                                        
-                                    if( isset( $t_result ) ) {
-                                        if(!is_blank( $t_webhook_url )){
-                                                echo '<tr>';
-                                                echo '<td class="category" width="50%">';
-                                                echo plugin_lang_get( 'monitor_page_is_self_signed_cert' );
-                                                echo '</td>';
-                                                echo '<td colspan="2">';
-                                                echo $t_is_self_signed_cert == true ? lang_get('yes') : lang_get('no');
-                                                echo '</td>';
-                                                echo '</tr>';
-                                        
-                                                echo '<tr>';
-                                                echo '<td class="category" width="50%">';
-                                                echo plugin_lang_get( 'monitor_page_last_error_date' );
-                                                echo '</td>';
-                                                echo '<td colspan="2">';
-                                                echo $t_last_error_date !== null ? date( config_get_global( 'normal_date_format' ), $t_last_error_date ) : '';
-                                                echo '</td>';
-                                                echo '</tr>';
-                                                
-                                                echo '<tr>';
-                                                echo '<td class="category" width="50%">';
-                                                echo plugin_lang_get( 'monitor_page_last_error_message' );
-                                                echo '</td>';
-                                                echo '<td colspan="2">';
-                                                echo $t_last_error_message !== null ? string_display_line( $t_last_error_message ) : '';
-                                                echo '</td>';
-                                                echo '</tr>';
-                                        }
-
-                                        echo '<tr>';
-                                        echo '<td class="category" width="50%">';
-                                        echo plugin_lang_get( 'monitor_page_pending_update_count' );
-                                        echo '</td>';
-                                        echo '<td colspan="2">';
-                                        echo (int)$t_pending_update_count;
-                                        echo '</td>';
-                                        echo '</tr>';
-
-                                    }
-
-                                    if( (int)plugin_config_get( 'reinstall_webhook' ) == OFF ) {
-                                        telegram_monitor_last_run_print( (int)plugin_config_get( 'get_updates_last_run' ) );
-                                    }
-                                }
-                                ?>
-
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-</div>
-
-<?php
-# Nothing of MAX is shown, nor asked, while it is switched off
-$t_max = ON == (int)plugin_config_get( 'max_enabled' ) ? messenger_transport( 'max' ) : NULL;
-
-if( $t_max !== NULL ) {
-?>
-<div class="col-md-12 col-xs-12">
-            <div class="space-10"></div>
-            <div class="widget-box widget-color-blue2">
-                <div class="widget-header widget-header-small">
-                    <h4 class="widget-title lighter">
                         <i class="ace-icon fa fa-comments"></i>
-                        <?php echo string_display_line( $t_max->title() ) ?>
+                        <?php echo 'MAX' ?>
                     </h4>
                 </div>
 
@@ -183,14 +77,16 @@ if( $t_max !== NULL ) {
                                     <col style="width:25%" />
                                 </colgroup>
                                 <?php
-                                if( !$t_max->is_enabled() ) {
-                                        telegram_config_row_print( $t_max->title(), plugin_lang_get( 'max_monitor_not_configured' ) );
-                                } else {
-                                        telegram_config_row_print( plugin_lang_get( 'max_bot_name' ), telegram_bot_chat_link_html( 'max' ) );
-                                        telegram_max_subscription_rows_print( $t_max );
+                                $t_max = messenger_api();
 
-                                        if( plugin_config_get( 'max_update_method' ) == 'script' ) {
-                                                telegram_monitor_last_run_print( (int)plugin_config_get( 'max_get_updates_last_run' ) );
+                                if( !$t_max->is_enabled() ) {
+                                        telegram_config_row_print( 'MAX', plugin_lang_get( 'max_monitor_not_configured' ) );
+                                } else {
+                                        telegram_config_row_print( plugin_lang_get( 'config_bot_name' ), telegram_bot_chat_link_html() );
+                                        telegram_subscription_rows_print( $t_max );
+
+                                        if( plugin_config_get( 'update_method' ) == 'script' ) {
+                                                telegram_monitor_last_run_print( (int)plugin_config_get( 'get_updates_last_run' ) );
                                         }
                                 }
                                 ?>
@@ -200,9 +96,6 @@ if( $t_max !== NULL ) {
                 </div>
             </div>
 </div>
-<?php
-}
-?>
 
 <div class="col-md-12 col-xs-12">
     <div class="space-10"></div>
@@ -238,32 +131,19 @@ if( $t_max !== NULL ) {
                                             <table class="table table-condensed">
                                                 <tr>
                                                     <th><?php echo lang_get( 'username' ) ?></th>
-                                                    <th><?php echo plugin_lang_get( 'monitor_page_transport' ) ?></th>
-                                                    <th><?php echo plugin_lang_get( 'monitor_page_telegram_user_id' ) ?></th>
-                                                    <th><?php echo plugin_lang_get( 'monitor_page_telegram_username' ) ?></th>
+                                                    <th><?php echo plugin_lang_get( 'account_id' ) ?></th>
                                                     <th></th>
                                                 </tr>
                                                 <?php foreach( $t_accounts as $t_account ) {
-                                                    $t_user_id   = $t_account['mantis_user_id'];
-                                                    $t_transport = messenger_transport( $t_account['transport'] );
-
-                                                    # The login is not stored anywhere: usernames change on the
-                                                    # side of the messenger, so it is asked live and an unreachable
-                                                    # API only costs the column, not the page
-                                                    $t_telegram_login = $t_transport !== NULL && $t_transport->is_enabled()
-                                                            ? $t_transport->account_name( $t_account['account_id'] )
-                                                            : '';
+                                                    $t_user_id = $t_account['mantis_user_id'];
                                                     ?>
                                                     <tr>
                                                         <td><?php echo string_display_line( user_get_field( $t_user_id, 'username' ) ) ?></td>
-                                                        <td><?php echo string_display_line( $t_transport === NULL ? $t_account['transport'] : $t_transport->title() ) ?></td>
                                                         <td><?php echo string_display_line( $t_account['account_id'] ) ?></td>
-                                                        <td><?php echo is_blank( $t_telegram_login ) ? '&#8212;' : string_display_line( $t_telegram_login ) ?></td>
                                                         <td>
                                                             <form method="post" action="<?php echo plugin_page( 'user_unlink' ) ?>">
                                                                 <?php echo form_security_field( 'telegram_user_unlink' ) ?>
                                                                 <input type="hidden" name="user_id" value="<?php echo $t_user_id ?>" />
-                                                                <input type="hidden" name="transport" value="<?php echo string_attribute( $t_account['transport'] ) ?>" />
                                                                 <input type="hidden" name="source" value="<?php echo TELEGRAM_UNLINK_SOURCE_ADMIN ?>" />
                                                                 <input type="submit" class="btn btn-sm btn-primary btn-white btn-round"
                                                                        value="<?php echo plugin_lang_get( 'user_unlink_button' ) ?>" />

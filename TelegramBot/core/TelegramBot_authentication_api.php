@@ -16,58 +16,25 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Hide the E_DEPRECATED notices raised inside api/vendor/.
- *
- * The pinned longman/telegram-bot cannot be upgraded past the PHP baseline of
- * the plugin, and on a modern PHP the core error handler would print its
- * notices inline on every page that talks to Telegram. Notices of the plugin
- * itself still reach the core handler untouched.
- *
- * @return void
- */
-function telegram_vendor_deprecations_suppress() {
-	static $s_installed = false;
-
-	if( $s_installed ) {
-		return;
-	}
-	$s_installed = true;
-
-	$t_vendor_dir = realpath( dirname( __FILE__ ) . '/../api/vendor' );
-	$t_previous   = null;
-
-	$t_previous = set_error_handler( function( $p_type, $p_error, $p_file, $p_line ) use ( &$t_previous, $t_vendor_dir ) {
-		if( ( $p_type & ( E_DEPRECATED | E_USER_DEPRECATED ) ) && strpos( $p_file, $t_vendor_dir ) === 0 ) {
-			return true;
-		}
-		if( $t_previous === null ) {
-			return false;
-		}
-		return call_user_func( $t_previous, $p_type, $p_error, $p_file, $p_line );
-	} );
-}
-
-/**
- * Check that a messenger account is linked to an enabled MantisBT user and log that
+ * Check that a MAX account is linked to an enabled MantisBT user and log that
  * user in; an account linked to nobody gets an invitation to link one instead.
  *
- * @param string      $p_transport  Name of the transport the update came from.
- * @param string      $p_account_id Account of the messenger.
- * @param string|null $p_lang_code  Language code the messenger gives for the account.
+ * @param string      $p_account_id Account of MAX, the user id.
+ * @param string|null $p_lang_code  Language code MAX gives for the account.
  * @return boolean
  */
-function auth_ensure_telegram_user_authenticated( $p_transport, $p_account_id, $p_lang_code = null ) {
+function auth_ensure_telegram_user_authenticated( $p_account_id, $p_lang_code = null ) {
 
-    $t_address = messenger_address_make( $p_transport, $p_account_id );
+    $t_address = (string)$p_account_id;
 
     plugin_log_event( 'Account ' . $t_address . ' request language: "' . $p_lang_code . '"' );
 
-    $t_mantis_user_id = telegram_account_user_get( $p_transport, $p_account_id );
+    $t_mantis_user_id = telegram_account_user_get( $p_account_id );
 
     if( $t_mantis_user_id == 0 ) {
         lang_push( telegram_lang_map_auto( $p_lang_code ) );
-        # a failure of the invitation is logged by the transport
-        user_telegram_signup( $p_transport, $p_account_id );
+        # a failure of the invitation is logged by MaxBotApi
+        user_telegram_signup( $p_account_id );
         plugin_log_event( 'Authorization Error! Account ' . $t_address . ' is not mapped to any mantisbt user. As a response, an authorization invitation was sent.' );
         return false;
     } else if( !user_exists( $t_mantis_user_id ) || !user_is_enabled( $t_mantis_user_id ) ) {
@@ -75,7 +42,7 @@ function auth_ensure_telegram_user_authenticated( $p_transport, $p_account_id, $
         # For the same reason the name for the log is taken from user_get_name(),
         # which answers with the placeholder of a deleted user instead of halting
         lang_push( telegram_lang_map_auto( $p_lang_code ) );
-        user_telegram_signup( $p_transport, $p_account_id );
+        user_telegram_signup( $p_account_id );
         plugin_log_event( 'Authorization Error! User ' . user_get_name( $t_mantis_user_id ) . ' (id#' . $t_mantis_user_id . ') is disabled or deleted. As a response, an authorization invitation was sent.' );
         return false;
     } else {
@@ -92,25 +59,24 @@ function auth_ensure_telegram_user_authenticated( $p_transport, $p_account_id, $
 }
 
 /**
- * Invite the owner of a messenger account which is not linked to a MantisBT account
+ * Invite the owner of a MAX account which is not linked to a MantisBT account
  * to link one.
  *
- * @param string $p_transport  Name of the transport.
- * @param string $p_account_id Account of the messenger.
+ * @param string $p_account_id Account of MAX, the user id.
  * @return boolean Whether the invitation went through.
  */
-function user_telegram_signup( $p_transport, $p_account_id ) {
+function user_telegram_signup( $p_account_id ) {
 
-    //We correctly form the url, depending on which method of receiving updates from the telegram server is selected.
+    # The url of MantisBT as the users see it: the scripts run from the command line
     $t_url = telegram_mantis_url_get();
 
     $t_registration_method = (int) plugin_config_get( 'registration_method' );
 
     # The state row is needed in every method: it holds the id of the invitation
-    $t_pin_code = telegram_pin_code_get( $p_transport, $p_account_id );
+    $t_pin_code = telegram_pin_code_get( $p_account_id );
 
     # Only one invitation stays in the chat, the previous one is of no use anymore
-    telegram_registration_message_remove( $p_transport, $p_account_id );
+    telegram_registration_message_remove( $p_account_id );
 
     $data_signup = array();
 
@@ -121,7 +87,6 @@ function user_telegram_signup( $p_transport, $p_account_id ) {
         $t_signup_keyboard->addRow( [
                               'text' => plugin_lang_get( 'registration_button_text' ),
                               'url'  => $t_url . plugin_page( 'registred', TRUE )
-                                          . '&transport=' . urlencode( $p_transport )
                                           . '&account_id=' . urlencode( $p_account_id )
         ] );
 
@@ -147,13 +112,13 @@ function user_telegram_signup( $p_transport, $p_account_id ) {
                                       );
     }
 
-    $t_message_ids = messenger_send( messenger_address_make( $p_transport, $p_account_id ), $data_signup );
+    $t_message_ids = messenger_send( $p_account_id, $data_signup );
 
     if( empty( $t_message_ids ) ) {
         return false;
     }
 
-    telegram_registration_message_id_set( $p_transport, $p_account_id, reset( $t_message_ids ) );
+    telegram_registration_message_id_set( $p_account_id, reset( $t_message_ids ) );
 
     return true;
 }

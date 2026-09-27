@@ -16,18 +16,12 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Logger of the Telegram connection debug, a PSR-3 one writing into a plain file.
- *
- * The library takes a PSR-3 logger and nothing else ( the initDebugLog() family
- * of the 0.4x versions is gone ), and the plugin carries no logging package of
- * its own, so the debug of the exchange is written by this class.
- *
- * @author g.ermolaev
+ * Logger of the connection debug, writing the exchange with MAX into a plain file.
  */
-class TelegramBotFileLogger extends \Psr\Log\AbstractLogger {
+class TelegramBotFileLogger {
 
         /**
-         * File the messages are appended to.
+         * File the lines are appended to.
          *
          * @var string
          */
@@ -42,39 +36,25 @@ class TelegramBotFileLogger extends \Psr\Log\AbstractLogger {
         private $write_failure_logged = FALSE;
 
         /**
-         * @param string $p_log_path File the messages are appended to.
+         * @param string $p_log_path File the lines are appended to.
          */
         public function __construct( $p_log_path ) {
                 $this->log_path = $p_log_path;
         }
 
         /**
-         * Append a message to the log file.
+         * Append a line to the log file.
          *
-         * @param mixed  $p_level   Severity of the message, a Psr\Log\LogLevel constant.
-         * @param string $p_message Message itself.
-         * @param array  $p_context Values of the placeholders of the message.
+         * @param string $p_line The line.
          * @return void
          */
-        public function log( $p_level, $p_message, array $p_context = array() ) {
+        public function write( $p_line ) {
 
                 if( is_blank( $this->log_path ) ) {
                         return;
                 }
 
-                $t_message = (string)$p_message;
-
-                foreach( $p_context as $t_key => $t_value ) {
-                        if( is_scalar( $t_value ) || $t_value === NULL
-                                        || ( is_object( $t_value ) && method_exists( $t_value, '__toString' ) ) ) {
-                                $t_message = str_replace( '{' . $t_key . '}', (string)$t_value, $t_message );
-                        }
-                }
-
-                $t_line = sprintf( '[%s] %s: %s' . PHP_EOL,
-                                          date( 'Y-m-d H:i:s' ),
-                                          strtoupper( (string)$p_level ),
-                                          $t_message );
+                $t_line = sprintf( '[%s] %s' . PHP_EOL, date( 'Y-m-d H:i:s' ), (string)$p_line );
 
                 if( @file_put_contents( $this->log_path, $t_line, FILE_APPEND | LOCK_EX ) !== FALSE ) {
                         return;
@@ -86,5 +66,4 @@ class TelegramBotFileLogger extends \Psr\Log\AbstractLogger {
                         plugin_log_event( 'ERROR! The debug of the connection is not written to "' . $this->log_path . '"' );
                 }
         }
-
 }

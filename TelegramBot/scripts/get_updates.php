@@ -1,6 +1,6 @@
 #!/usr/bin/php -q
 <?php
-# Copyright (c) 2020 Grigoriy Ermolaev (igflocal@gmail.com)
+# Copyright (c) 2026 Grigoriy Ermolaev (igflocal@gmail.com)
 # TelegramBot for MantisBT is free software: 
 # you can redistribute it and/or modify it under the terms of the GNU
 # General Public License as published by the Free Software Foundation, 
@@ -16,7 +16,7 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Cron Script to get updates from Telegram.
+ * Cron Script to get updates from MAX by long polling, the alternative to the webhook.
  */
 
 /**
@@ -27,9 +27,8 @@ $g_bypass_headers = 1;
 
 require_once( dirname( dirname( dirname( dirname( __FILE__ ) ) ) ) . '/core.php' );
 
-# Make sure this script doesn't run via the webserver
 if( php_sapi_name() != 'cli' ) {
-	echo "telegram_get_updates.php is not allowed to run through the webserver.\n";
+	echo "get_updates.php is not allowed to run through the webserver.\n";
 	exit( 1 );
 }
 
@@ -40,7 +39,6 @@ if( plugin_needs_upgrade( $t_plugin ) ) {
 	trigger_error( ERROR_PLUGIN_UPGRADE_NEEDED, ERROR );
 }
 
-# Plugin can be registered but fail to load e.g. due to unmet dependencies
 if( !plugin_is_loaded( 'TelegramBot' ) ) {
 	error_parameters( 'TelegramBot' );
 	trigger_error( ERROR_PLUGIN_NOT_LOADED, ERROR );
@@ -48,21 +46,24 @@ if( !plugin_is_loaded( 'TelegramBot' ) ) {
 
 plugin_push_current( 'TelegramBot' );
 
-$t_telegram = messenger_transport( 'tg' );
+$t_max = messenger_api();
 
-if( !$t_telegram->is_enabled() ) {
-    plugin_error('ERROR_TG_SESSION_NOT_INITIALIZED');
+# The script stays in crontab whatever the settings are: a bot without a token or
+# one receiving its updates by the webhook is not polled
+if( !$t_max->is_enabled() ) {
+	echo "The token of the bot is not set, exiting.\n";
+	exit( 0 );
 }
 
-# Only one instance per installation: parallel getUpdates calls are rejected by Telegram with 409 Conflict.
-# The lock lives in the world-writable temp under a predictable name, so the file is trusted only
-# after the checks below: one planted by another local user has to fail loudly instead of holding
-# the flock() and posing as a running instance forever.
-$t_lock_path = rtrim( sys_get_temp_dir(), '/\\' ) . DIRECTORY_SEPARATOR . 'mantis_telegrambot_' . md5( __FILE__ ) . '.lock';
+if( plugin_config_get( 'update_method' ) != 'script' ) {
+	echo "The updates are received by the webhook, exiting.\n";
+	exit( 0 );
+}
 
-# A symlink or a FIFO in place of the lock redirects the open elsewhere or hangs it
+$t_lock_path = rtrim( sys_get_temp_dir(), '/\\' ) . DIRECTORY_SEPARATOR . 'mantis_maxbot_' . md5( __FILE__ ) . '.lock';
+
 if( file_exists( $t_lock_path ) && ( is_link( $t_lock_path ) || !is_file( $t_lock_path ) ) ) {
-	plugin_log_event( 'Get updates refused: lock path ' . $t_lock_path . ' is not a regular file.' );
+	plugin_log_event( 'MAX get updates refused: lock path ' . $t_lock_path . ' is not a regular file.' );
 	echo "Lock path $t_lock_path is not a regular file, exiting.\n";
 	exit( 1 );
 }
@@ -73,37 +74,33 @@ if( $t_lock_handle === false ) {
 	# The file of this user always opens - it is created 0600 below, so a failure
 	# means a foreign one, and the sticky bit on temp keeps it there until its owner
 	# or root removes it
-	plugin_log_event( 'Get updates refused: lock file ' . $t_lock_path . ' is not writable, probably created by another user.' );
+	plugin_log_event( 'MAX get updates refused: lock file ' . $t_lock_path . ' is not writable, probably created by another user.' );
 	echo "Lock file $t_lock_path is not writable, exiting.\n";
 	exit( 1 );
 }
 
-# The very first run may still open a file planted before it: the owner gives that away
 $t_lock_stat = fstat( $t_lock_handle );
 if( function_exists( 'posix_geteuid' ) && $t_lock_stat['uid'] !== posix_geteuid() ) {
-	plugin_log_event( 'Get updates refused: lock file ' . $t_lock_path . ' is owned by another user.' );
+	plugin_log_event( 'MAX get updates refused: lock file ' . $t_lock_path . ' is owned by another user.' );
 	echo "Lock file $t_lock_path is owned by another user, exiting.\n";
 	exit( 1 );
 }
 
-# Nobody else may open the file: anybody able to open it can hold flock() on it
-# and silence the polling
 @chmod( $t_lock_path, 0600 );
 
+# Two polls of one bot at a time would take the updates from each other
 if( !flock( $t_lock_handle, LOCK_EX | LOCK_NB ) ) {
-	plugin_log_event( 'Get updates skipped: another instance is already running.' );
+	plugin_log_event( 'MAX get updates skipped: another instance is already running.' );
 	echo "Another instance is already running, exiting.\n";
 	exit( 0 );
 }
 
-# Let the plugin configuration page tell whether the script is scheduled and actually running.
 plugin_config_set( 'get_updates_last_run', time() );
 
-# Long polling: Telegram holds the connection for $t_timeout seconds and answers as soon as an update arrives.
-$t_timeout  = (int)plugin_config_get( 'get_updates_timeout' );
+$t_timeout  = min( (int)plugin_config_get( 'get_updates_timeout' ), MaxBotApi::POLL_TIMEOUT_MAX );
 $t_run_time = (int)plugin_config_get( 'get_updates_run_time' );
 
-# The connection would be dropped before the answer if curl waits less than Telegram holds the request.
+# The connection is held by MAX for the whole timeout, the client must wait longer
 $t_response_timeout = (int)plugin_config_get( 'time_out_server_response' );
 if( $t_timeout > 0 && $t_timeout >= $t_response_timeout ) {
 	$t_timeout = max( 0, $t_response_timeout - 5 );
@@ -111,9 +108,7 @@ if( $t_timeout > 0 && $t_timeout >= $t_response_timeout ) {
 
 define( 'UPDATE_PROCESS_INC_ALLOW', true );
 
-# Telegram confirms updates by the offset of the next call, so the offset is kept here and
-# stored between runs, see TelegramTransport::updates_poll().
-$t_offset     = (int)plugin_config_get( 'get_updates_offset' );
+$t_marker     = (string)plugin_config_get( 'get_updates_marker' );
 $t_started_at = time();
 
 do {
@@ -121,29 +116,32 @@ do {
 	# leaves the bot deaf until the next scheduled run, which delays the answer by up to a timeout.
 	$t_poll_timeout = $t_timeout;
 	if( $t_run_time > 0 ) {
-		$t_poll_timeout = min( $t_timeout, $t_run_time - ( time() - $t_started_at ) );
+		$t_poll_timeout = max( 0, min( $t_timeout, $t_run_time - ( time() - $t_started_at ) ) );
 	}
 
 	echo "Get updates...\n";
 
 	try {
-		$t_results = $t_telegram->updates_poll( $t_offset, $t_poll_timeout, $t_offset );
+		$t_results = $t_max->updates_poll( $t_marker, $t_poll_timeout, $t_marker );
 	} catch( Exception $t_error ) {
-		plugin_log_event( 'Get updates failed: ' . $t_error->getMessage() );
-		error_parameters( $t_error->getMessage() );
-		plugin_error('ERROR_TG_GET_UPDATE');
+		plugin_log_event( 'MAX get updates failed: ' . $t_error->getMessage() );
+		echo "Get updates failed: " . $t_error->getMessage() . "\n";
+		exit( 1 );
 	}
 
 	echo "Received " . count( $t_results ) . " updates.\n";
 
 	if( count( $t_results ) > 0 ) {
-		plugin_log_event( sprintf( 'Received %d updates, next offset %d.', count( $t_results ), $t_offset ) );
+		plugin_log_event( sprintf( 'Received %d MAX updates, next marker %s.', count( $t_results ), $t_marker ) );
 
 		echo "Start process updates...\n\n";
 		include( dirname( dirname( __FILE__ )) . '/pages/update_process_inc.php' );
+	}
 
-		# Stored after processing: a run that dies earlier makes Telegram resend the updates.
-		plugin_config_set( 'get_updates_offset', $t_offset );
+	# Stored after processing: a run that dies earlier makes MAX give the updates again.
+	# The marker moves on an empty answer too, it is stored whenever it changes.
+	if( $t_marker !== (string)plugin_config_get( 'get_updates_marker' ) ) {
+		plugin_config_set( 'get_updates_marker', $t_marker );
 	}
 
 	# Keep polling while there is time left in this run.

@@ -16,8 +16,9 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Tags of the callback data of the inline buttons: Telegram limits the data of a
- * button to 64 bytes, so the actions are named by short keys.
+ * Tags of the callback data of the inline buttons. MAX takes up to 1024 characters
+ * of the payload of a button, the actions are named by short keys all the same:
+ * the data travels with every button of every keyboard.
  */
 class TelegrambotActions {
 

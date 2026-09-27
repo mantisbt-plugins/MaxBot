@@ -83,47 +83,36 @@ function telegram_edit_account_prefs( $p_user_id = null, $p_error_if_protected =
                                 <div class="table-responsive">
                                     <table class="table table-bordered table-condensed table-striped">
                                         <?php
-                                        $t_accounts = telegram_accounts_get( $p_user_id );
+                                        $t_account_id = telegram_account_get( $p_user_id );
 
-                                        foreach( $t_accounts as $t_name => $t_account_id ) {
-                                            $t_transport = messenger_transport( $t_name );
-
-                                            # The login is asked live: an unreachable API only costs
-                                            # the name, the button releasing the binding stays
-                                            $t_telegram_login = $t_transport !== NULL && $t_transport->is_enabled()
-                                                    ? $t_transport->account_name( $t_account_id )
-                                                    : '';
+                                        if( !is_blank( $t_account_id ) ) {
                                             ?>
                                             <tr>
                                                 <td class="category">
-                                                    <?php echo string_display_line( ( $t_transport === NULL ? $t_name : $t_transport->title() ) . ' ' . lang_get( 'username' ) ) ?>
+                                                    <?php echo plugin_lang_get( 'account_id' ) ?>
                                                 </td>
                                                 <td>
-                                                    <?php echo is_blank( $t_telegram_login ) ? '&#8212;' : string_display_line( $t_telegram_login ) ?>
+                                                    <?php echo string_display_line( $t_account_id ) ?>
 
                                                     <?php
                                                     # Releasing the binding from here needs no access to the chat,
-                                                    # unlike the /stop command. The buttons belong to the surrounding
-                                                    # form, nested forms are not allowed; the pressed one names the
-                                                    # messenger by its own value
+                                                    # unlike the /stop command. The button belongs to the surrounding
+                                                    # form, nested forms are not allowed
                                                     echo form_security_field( 'telegram_user_unlink' );
                                                     ?>
                                                     <input type="hidden" name="source" value="<?php echo TELEGRAM_UNLINK_SOURCE_ACCOUNT ?>" />
                                                     <button type="submit" class="btn btn-sm btn-primary btn-white btn-round pull-right"
-                                                            name="transport" value="<?php echo string_attribute( $t_name ) ?>"
                                                             formaction="<?php echo plugin_page( 'user_unlink' ) ?>"><?php echo plugin_lang_get( 'user_unlink_button' ) ?></button>
                                                 </td>
                                             </tr>
                                             <?php
-                                        }
-
-                                        # The messengers still to link: how to reach the bot there, the
-                                        # bot answers a first message with the link or the PIN code
-                                        foreach( telegram_user_transports_unlinked( $p_user_id ) as $t_name => $t_transport ) {
+                                        } else {
+                                            # How to reach the bot: it answers a first message with the
+                                            # link or the PIN code
                                             ?>
                                             <tr>
                                                 <th class="category" width="35%">
-                                                    <?php echo sprintf( plugin_lang_get( 'messenger_subscribe_bot' ), string_display_line( $t_transport->title() ), telegram_bot_chat_link_html( $t_name ) ) ?>
+                                                    <?php echo sprintf( plugin_lang_get( 'messenger_subscribe_bot' ), telegram_bot_chat_link_html() ) ?>
                                                 </th>
                                                 <td class="left" colspan="1">
                                                     <?php

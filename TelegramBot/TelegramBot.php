@@ -15,8 +15,8 @@
 # along with Customer management plugin for MantisBT.
 # If not, see <http://www.gnu.org/licenses/>.
 
-# Ways to link a Telegram account to a MantisBT one, see the 'registration_method' config option.
-# The link carries the telegram user id to the registred page, the PIN code goes the other way
+# Ways to link a MAX account to a MantisBT one, see the 'registration_method' config option.
+# The link carries the MAX user id to the registred page, the PIN code goes the other way
 # round - the bot shows it in the chat and the user types it in his account preferences, which
 # is the only method that works when MantisBT is not reachable from the user's phone.
 define( 'TELEGRAM_REGISTRATION_LINK', 0 );
@@ -40,43 +40,8 @@ define( 'TELEGRAM_PIN_CODE_TTL', 15 * 60 );
 
 # Seconds the registration state is kept: the PIN code inside it expires much earlier,
 # but the id of the invitation is still needed to remove that message from the chat when
-# the user follows the link later. Telegram lets a bot delete its own message for 48 hours.
+# the user follows the link later.
 define( 'TELEGRAM_REGISTRATION_STATE_TTL', 48 * 60 * 60 );
-
-/**
- * Schema step: copy the bindings of the telegram accounts into the table of the
- * messenger accounts. Run by plugin_upgrade() before the plugin is initialized,
- * which is why it lives in this file.
- *
- * The old table has the MantisBT user as the primary key only, so a telegram
- * account linked twice by a past bug is taken once, for the first user.
- *
- * @return integer 2, the success status plugin_upgrade() expects.
- */
-function install_telegrambot_accounts_copy() {
-    $t_old_table = plugin_table( 'user_relationship' );
-    $t_new_table = plugin_table( 'account' );
-
-    $t_result = db_query( "SELECT mantis_user_id, telegram_user_id FROM $t_old_table ORDER BY mantis_user_id" );
-
-    $t_seen = array();
-    while( $t_row = db_fetch_array( $t_result ) ) {
-        # a DECIMAL may come back with a fraction, a telegram id is an integer
-        $t_account_id = preg_replace( '/\..*$/', '', trim( (string)$t_row['telegram_user_id'] ) );
-
-        if( $t_account_id === '' || isset( $t_seen[$t_account_id] ) ) {
-            continue;
-        }
-        $t_seen[$t_account_id] = true;
-
-        db_param_push();
-        db_query( "INSERT INTO $t_new_table ( mantis_user_id, transport, account_id ) VALUES ( "
-                . db_param() . ', ' . db_param() . ', ' . db_param() . ' )',
-                array( (int)$t_row['mantis_user_id'], 'tg', $t_account_id ) );
-    }
-
-    return 2;
-}
 
 class TelegramBotPlugin extends MantisPlugin {
 
@@ -85,14 +50,14 @@ class TelegramBotPlugin extends MantisPlugin {
         $this->name        = 'TelegramBot';
         $this->description = plugin_lang_get( 'description' );
 
-        $this->version  = '2.0.0-dev';
+        $this->version  = '1.0.0-dev';
         $this->requires = array(
                                   'MantisCore' => '2.26.0',
         );
 
         $this->author  = 'Grigoriy Ermolaev';
         $this->contact = 'igflocal@gmail.com';
-        $this->url     = 'http://github.com/mantisbt-plugins/TelegramBot';
+        $this->url     = 'https://github.com/brlumen/MaxBot';
         $this->page    = 'config_page';
     }
 
@@ -119,109 +84,40 @@ class TelegramBotPlugin extends MantisPlugin {
         }
 
         return array(
-                                  // version 0.0.1 (schema 0)
-                                  array( 'CreateTableSQL', array( plugin_table( 'user_relationship' ), "
-                                      mantis_user_id    I   $t_notnull  PRIMARY,
-                                      telegram_user_id  I   $t_notnull",
-                                                                                      $t_table_options
-                                                            ) ),
-                                  // version 1.3.0 (schema 1)
-                                  array( 'CreateTableSQL', array( plugin_table( 'message_relationship' ), "
-                                      id                I   $t_notnull  AUTOINCREMENT   PRIMARY,                                     
-                                      bug_id            I   UNSIGNED    $t_notnull,
-                                      chat_id           N   UNSIGNED    $t_notnull,
-                                      msg_id            I   UNSIGNED    $t_notnull",
-                                                                                      $t_table_options
-                                                            ) ),
-                                  // version 1.3.0 (schema 2)                          
-                                  array( 'CreateIndexSQL', array( 'idx_msgid_chatid', plugin_table( 'message_relationship' ), array( 'msg_id', 'chat_id' ) ) ),
-                                  // version 1.3.0 (schema 3)
-                                  array( 'CreateIndexSQL', array( 'idx_chatid', plugin_table( 'message_relationship' ), 'chat_id' ) ),
-                                  // version 1.5.1 (schema 4)
-                                  // AlterColumnSQL, not ChangeTableSQL: since ADOdb 5.22.8 (MantisBT 2.27.3)
-                                  // ChangeTableSQL returns an empty array for a string field definition, which
-                                  // MantisBT reports as ERROR_PLUGIN_UPGRADE_FAILED. Up to ADOdb 5.22.7 the
-                                  // string definition was passed to alterColumnSql() anyway, so the resulting
-                                  // schema is the same as on the installations upgraded before.
-                                  array( 'AlterColumnSQL', array( plugin_table( "user_relationship" ), "
-                                        telegram_user_id  N   $t_notnull
-                                " ) ),
-                                  // version 2.0.0 (schema 5)
-                                  // One PIN code per telegram user (hence the primary key), looked up
-                                  // by code when the user enters it in his account preferences.
-                                  // N without a size is DECIMAL(10,0) - too narrow for a telegram user
-                                  // id, which the API defines as fitting into 52 bits
-                                  array( 'CreateTableSQL', array( plugin_table( 'pin_codes' ), "
-                                      telegram_user_id  N(16)   UNSIGNED    $t_notnull  PRIMARY,
-                                      pin_code          I   UNSIGNED    $t_notnull,
-                                      timestamp         I   UNSIGNED    $t_notnull DEFAULT '1'",
-                                                                                      $t_table_options
-                                                            ) ),
-                                  // version 2.0.0 (schema 6)
-                                  // Unique: a code must identify exactly one telegram user
-                                  array( 'CreateIndexSQL', array( 'idx_pin_code', plugin_table( 'pin_codes' ), 'pin_code', array( 'UNIQUE' ) ) ),
-                                  // version 2.0.0 (schema 7)
-                                  // Schema 4 widened the column from I to N, which stops at DECIMAL(10,0):
-                                  // enough for the ids issued so far, one digit short of the 52 bits the
-                                  // Telegram API allows
-                                  array( 'AlterColumnSQL', array( plugin_table( "user_relationship" ), "
-                                        telegram_user_id  N(16)   $t_notnull
-                                " ) ),
-                                  // version 2.0.0 (schema 8)
-                                  array( 'AlterColumnSQL', array( plugin_table( "message_relationship" ), "
-                                        chat_id  N(16)   UNSIGNED    $t_notnull
-                                " ) ),
-                                  // version 2.0.0 (schema 9)
-                                  // Id of the invitation the bot sent to an unregistred user, so that
-                                  // the message can be removed from the chat once the accounts are linked
-                                  array( 'AddColumnSQL', array( plugin_table( 'pin_codes' ), "
-                                        message_id  I   UNSIGNED    $t_notnull DEFAULT '0'
-                                " ) ),
-                                  // version 2.0.0 (schema 10)
-                                  // The accounts of the messengers the bot talks through, one per
-                                  // MantisBT user and messenger. Replaces user_relationship, which
-                                  // stays in place untouched.
+                                  // version 1.0.0 (schema 0)
+                                  // The MAX account of a MantisBT user: one per user, and an account
+                                  // belongs to one user. The ids of MAX are kept as strings.
                                   array( 'CreateTableSQL', array( plugin_table( 'account' ), "
-                                      mantis_user_id    I       UNSIGNED    $t_notnull,
-                                      transport         C(8)    NOTNULL     PRIMARY,
-                                      account_id        C(64)   NOTNULL     PRIMARY",
+                                      mantis_user_id    I       UNSIGNED    NOTNULL     PRIMARY,
+                                      account_id        C(64)   $t_notnull  DEFAULT \" '' \"",
                                                                                       $t_table_options
                                                             ) ),
-                                  // version 2.0.0 (schema 11)
-                                  array( 'CreateIndexSQL', array( 'idx_account_user_transport', plugin_table( 'account' ), array( 'mantis_user_id', 'transport' ), array( 'UNIQUE' ) ) ),
-                                  // version 2.0.0 (schema 12)
-                                  array( 'UpdateFunction', 'telegrambot_accounts_copy' ),
-                                  // version 2.0.0 (schema 13)
+                                  // version 1.0.0 (schema 1)
+                                  array( 'CreateIndexSQL', array( 'idx_account_id', plugin_table( 'account' ), 'account_id', array( 'UNIQUE' ) ) ),
+                                  // version 1.0.0 (schema 2)
                                   // The messages about the issues sent to the chats, a reply to one
-                                  // of them becomes a note. The ids are strings: not every messenger
-                                  // numbers its messages. Replaces message_relationship.
+                                  // of them becomes a note. MAX names a message by a string ( "mid.…" ).
                                   array( 'CreateTableSQL', array( plugin_table( 'message_link' ), "
                                       id                I       $t_notnull  AUTOINCREMENT   PRIMARY,
                                       bug_id            I       UNSIGNED    $t_notnull,
-                                      transport         C(8)    $t_notnull  DEFAULT \" '' \",
                                       chat_id           C(64)   $t_notnull  DEFAULT \" '' \",
                                       message_id        C(64)   $t_notnull  DEFAULT \" '' \"",
                                                                                       $t_table_options
                                                             ) ),
-                                  // version 2.0.0 (schema 14)
-                                  array( 'CreateIndexSQL', array( 'idx_message_link_chat', plugin_table( 'message_link' ), array( 'transport', 'chat_id', 'message_id' ) ) ),
-                                  // version 2.0.0 (schema 15)
-                                  // The numbers of the old table become strings on the way
-                                  array( 'InsertData', array( plugin_table( 'message_link' ), "
-                                        ( bug_id, transport, chat_id, message_id )
-                                        SELECT bug_id, 'tg', chat_id, msg_id FROM " . plugin_table( 'message_relationship' ) ) ),
-                                  // version 2.0.0 (schema 16)
-                                  // The registrations in progress per messenger account. Replaces
-                                  // pin_codes, whose rows live for two days and are not carried over.
+                                  // version 1.0.0 (schema 3)
+                                  array( 'CreateIndexSQL', array( 'idx_message_link_chat', plugin_table( 'message_link' ), array( 'chat_id', 'message_id' ) ) ),
+                                  // version 1.0.0 (schema 4)
+                                  // The registrations in progress, one per MAX account: the PIN code
+                                  // issued to it and the id of the invitation the bot has sent.
                                   array( 'CreateTableSQL', array( plugin_table( 'registration' ), "
-                                      transport         C(8)    NOTNULL     PRIMARY,
                                       account_id        C(64)   NOTNULL     PRIMARY,
                                       pin_code          I       UNSIGNED    $t_notnull,
                                       timestamp         I       UNSIGNED    $t_notnull DEFAULT '1',
                                       message_id        C(64)   $t_notnull  DEFAULT \" '' \"",
                                                                                       $t_table_options
                                                             ) ),
-                                  // version 2.0.0 (schema 17)
+                                  // version 1.0.0 (schema 5)
+                                  // Unique: a code must identify exactly one MAX account
                                   array( 'CreateIndexSQL', array( 'idx_registration_pin_code', plugin_table( 'registration' ), 'pin_code', array( 'UNIQUE' ) ) ),
         );
     }
@@ -300,17 +196,14 @@ class TelegramBotPlugin extends MantisPlugin {
         require_once 'core/TelegramBot_fields_api.php';
         require_once 'core/TelegramBot_message_api.php';
         require_once 'core/TelegramBot_message_format_api.php';
-	require_once 'core/TelegramBot_menu_api.php';
+        require_once 'core/TelegramBot_menu_api.php';
         require_once 'core/TelegramBot_InlineKeyboardCalendar_api.php';
-//        require_once 'core/cfdefs/TelegramBot_cfdef_standard.php';
         require_once 'core/classes/TelegrambotActions.class.php';
         require_once 'core/classes/TelegramBotKeyboard.class.php';
         require_once 'core/classes/TelegramBotFile.class.php';
         require_once 'core/classes/TelegramBotMessage.class.php';
         require_once 'core/classes/TelegramBotUpdate.class.php';
-        require_once 'core/classes/TelegramBotTransport.class.php';
-        require_once 'core/classes/TelegramTransport.class.php';
-        require_once 'core/classes/MaxTransport.class.php';
+        require_once 'core/classes/MaxBotApi.class.php';
         require_once 'core/classes/TelegramBotFileLogger.class.php';
         require_once 'core/TelegramBot_custom_field_api.php';
         require_once 'core/TelegramBot_broadcast_api.php';
@@ -319,42 +212,42 @@ class TelegramBotPlugin extends MantisPlugin {
         global $g_skip_sending_bugnote, $g_telegram_callback_alert;
         $g_skip_sending_bugnote    = FALSE;
         $g_telegram_callback_alert = '';
-        
-        # The transports connect on their first call, only the notices of the library
-        # are hidden right away: the handler hiding them has to be installed before
-        # the update dispatcher installs its own, which it restores at the end
-        telegram_vendor_deprecations_suppress();
     }
 
     function config() {
         return array(
+                                  # token of the MAX bot
                                   'api_key'                                     => '',
+                                  # nickname of the bot, taken from GET /me when the token is saved
                                   'bot_name'                                    => '',
-                                  'use_cert'                                    => OFF,
-                                  'bot_cert'                                    => '',
-                                  'reinstall_webhook'                           => ON,
-                                  # how a telegram account is linked to a MantisBT one:
+                                  # how the updates are received: 'webhook' or 'script', the two
+                                  # exclude each other - MAX gives nothing to the long polling while
+                                  # a webhook subscription exists
+                                  'update_method'                               => 'webhook',
+                                  # secret of the webhook subscription, made by MaxBotApi::webhook_set()
+                                  'webhook_secret'                              => '',
+                                  # how a MAX account is linked to a MantisBT one:
                                   # TELEGRAM_REGISTRATION_LINK / _PIN / _BOTH
                                   'registration_method'                         => TELEGRAM_REGISTRATION_LINK,
                                   # whether the chat is told about an unlink done by an administrator
                                   'admin_unlink_notify'                         => ON,
-                                  'bot_father_url'                              => 'https://t.me/BotFather',
-                                  'telegram_url'                                => 'tg://resolve?domain=',
                                   'download_path'                               => '/tmp/',
-				  'proxy_address'                               => '',
-				  'time_out_server_response'			=> 30,
-				  'debug_connection_log_path'			=> '/tmp/TelegramBot_debug.log',
-				  'debug_connection_enabled'			=> OFF,
-				  # long polling: seconds Telegram holds the connection while there are no updates
-				  'get_updates_timeout'				=> 25,
-				  # long polling: seconds a single run of telegram_get_updates.php works (0 - poll once and exit)
-				  'get_updates_run_time'			=> 55,
-				  # long polling: timestamp of the last telegram_get_updates.php start, set by the script itself
-				  'get_updates_last_run'			=> 0,
-				  # long polling: id of the next expected update, kept by the script between runs
-				  'get_updates_offset'				=> 0,
+                                  'proxy_address'                               => '',
+                                  'time_out_server_response'                    => 30,
+                                  'debug_connection_log_path'                   => '/tmp/MaxBot_debug.log',
+                                  'debug_connection_enabled'                    => OFF,
+                                  # long polling: seconds MAX holds the connection while there are no
+                                  # updates, 90 at most and less than time_out_server_response
+                                  'get_updates_timeout'                         => 30,
+                                  # long polling: seconds a single run of get_updates.php works (0 - poll once and exit)
+                                  'get_updates_run_time'                        => 55,
+                                  # long polling: timestamp of the last get_updates.php start, set by the script itself
+                                  'get_updates_last_run'                        => 0,
+                                  # long polling: marker of the next expected update as MAX gave it,
+                                  # kept by the script between runs
+                                  'get_updates_marker'                          => '',
                                   # per-user state of the issue wizard; the *_chat_id keys of the
-                                  # dialogs hold the address of the chat, see messenger_address_make()
+                                  # dialogs hold the chat of the card, the user id of MAX
                                   'bug_data_draft'                              => '',
                                   'bug_data_draft_chat_id'                      => '',
                                   'bug_data_draft_message_id'                   => '',
@@ -383,7 +276,7 @@ class TelegramBotPlugin extends MantisPlugin {
                                                             'member_removed' => array( 'author' => OFF, 'members' => OFF, 'actor' => OFF ),
                                                             'rsvp'           => array( 'author' => ON, 'members' => OFF, 'actor' => OFF ),
                                   ),
-                                  # whether the reminders of Calendar are repeated in Telegram at
+                                  # whether the reminders of Calendar are repeated in MAX at
                                   # all; the reminders have no matrix row, their recipients are
                                   # chosen by Calendar, so this is the only global switch of them
                                   'calendar_reminders_enabled'                  => ON,
@@ -410,30 +303,6 @@ class TelegramBotPlugin extends MantisPlugin {
                                   'broadcast_send_threshold'                    => ADMINISTRATOR,
                                   # per-user broadcast permissions: array( user_id => array( project_id, ... ) )
                                   'broadcast_grants'                            => array(),
-                                  'api_url'                                     => 'https://api.telegram.org',
-                                  # the MAX messenger, the second transport of the bot; off, none of its
-                                  # code runs, see MaxTransport::is_enabled()
-                                  'max_enabled'                                 => OFF,
-                                  # token of the MAX bot
-                                  'max_api_key'                                 => '',
-                                  # nickname of the MAX bot, taken from GET /me when the token is saved
-                                  'max_bot_name'                                => '',
-                                  # how the updates of MAX are received: 'webhook' or 'script', the two
-                                  # exclude each other the way reinstall_webhook does for Telegram
-                                  'max_update_method'                           => 'webhook',
-                                  # secret of the webhook subscription, made by MaxTransport::webhook_set()
-                                  'max_webhook_secret'                          => '',
-                                  # long polling of MAX: seconds MAX holds the connection, 90 at most
-                                  # and less than time_out_server_response
-                                  'max_get_updates_timeout'                     => 30,
-                                  # long polling of MAX: seconds a single run of max_get_updates.php works
-                                  # (0 - poll once and exit)
-                                  'max_get_updates_run_time'                    => 55,
-                                  # long polling of MAX: marker of the next expected update as MAX gave
-                                  # it, kept by the script between runs
-                                  'max_get_updates_marker'                      => '',
-                                  # long polling of MAX: timestamp of the last max_get_updates.php start
-                                  'max_get_updates_last_run'                    => 0,
                                   /**
                                    * The following two config options allow you to control who should get email
                                    * notifications on different actions/statuses.  The first option
@@ -616,15 +485,11 @@ class TelegramBotPlugin extends MantisPlugin {
     
     public function errors() {
         return array(
-                                  'BAD_REQUEST'                 => plugin_lang_get( 'BAD_REQUEST' ),
-                                  'ERROR_CERT_FILE_NOT_FOUND'   => plugin_lang_get( 'ERROR_CERT_FILE_NOT_FOUND' ),
-                                  'ERROR_TG_SESSION_NOT_INITIALIZED'    => plugin_lang_get('ERROR_TG_SESSION_NOT_INITIALIZED'),
-                                  'ERROR_TG_GET_UPDATE'                 => plugin_lang_get('ERROR_TG_GET_UPDATE'),
-                                  'ERROR_TG_PIN_CODE_INVALID'           => plugin_lang_get('ERROR_TG_PIN_CODE_INVALID'),
-                                  'ERROR_TG_PIN_CODE_ATTEMPTS'          => plugin_lang_get('ERROR_TG_PIN_CODE_ATTEMPTS'),
-                                  'ERROR_TG_PIN_CODE_EXPIRED'           => plugin_lang_get('ERROR_TG_PIN_CODE_EXPIRED'),
-                                  'ERROR_TG_PIN_CODE_GENERATE'          => plugin_lang_get('ERROR_TG_PIN_CODE_GENERATE'),
-                                  'ERROR_TG_USER_ALREADY_ASSOCIATED'    => plugin_lang_get('ERROR_TG_USER_ALREADY_ASSOCIATED'),
+                                  'ERROR_PIN_CODE_INVALID'        => plugin_lang_get( 'ERROR_PIN_CODE_INVALID' ),
+                                  'ERROR_PIN_CODE_ATTEMPTS'       => plugin_lang_get( 'ERROR_PIN_CODE_ATTEMPTS' ),
+                                  'ERROR_PIN_CODE_EXPIRED'        => plugin_lang_get( 'ERROR_PIN_CODE_EXPIRED' ),
+                                  'ERROR_PIN_CODE_GENERATE'       => plugin_lang_get( 'ERROR_PIN_CODE_GENERATE' ),
+                                  'ERROR_USER_ALREADY_ASSOCIATED' => plugin_lang_get( 'ERROR_USER_ALREADY_ASSOCIATED' ),
         );
     }
 
@@ -835,7 +700,7 @@ class TelegramBotPlugin extends MantisPlugin {
      */
     function telegram_user_deleted( $p_type_event, $p_user_id ) {
         # No message to the chat: the account is gone, so an invitation to subscribe
-        # again would lead nowhere, and deleting a user must not wait for Telegram
+        # again would lead nowhere, and deleting a user must not wait for MAX
         telegram_bot_user_unlink( $p_user_id, /* notify */ FALSE );
         telegram_user_config_delete_all( $p_user_id );
     }
@@ -849,7 +714,7 @@ class TelegramBotPlugin extends MantisPlugin {
 
         # Entering a PIN code only makes sense while the account is not linked yet
         if( TELEGRAM_REGISTRATION_LINK != (int)plugin_config_get( 'registration_method' )
-                && !telegram_user_accounts_complete( auth_get_current_user_id() )
+                && !user_is_associated_with_telegram( auth_get_current_user_id() )
         ) {
             $t_items[] = '<a href=' . plugin_page( 'account_telegram_register_page' ) . '>' . plugin_lang_get( 'account_telegram_register_page_header' ) . '</a>';
         }
@@ -868,7 +733,7 @@ class TelegramBotPlugin extends MantisPlugin {
                                                             'title'        => plugin_lang_get( 'menu_main_broadcast_message_page' ),
                                                             # visibility is already decided by telegram_broadcast_can_send()
                                                             'access_level' => ANYBODY,
-                                                            'icon'         => 'fa-brands fa-telegram'
+                                                            'icon'         => 'fa-bullhorn'
                                   ),
         );
     }

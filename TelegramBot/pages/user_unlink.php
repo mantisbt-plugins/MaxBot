@@ -21,9 +21,6 @@ auth_ensure_user_authenticated();
 
 $f_user_id = gpc_get_int( 'user_id' );
 
-# The messenger whose binding is released, none for all of them
-$f_transport = gpc_get_string( 'transport', '' );
-
 # Which button was pressed, not whose binding it is: an administrator unlinking himself
 # from the plugin pages is still doing an administrative action and belongs back there
 $f_source = gpc_get_string( 'source', TELEGRAM_UNLINK_SOURCE_ADMIN );
@@ -35,7 +32,7 @@ if( $f_source != TELEGRAM_UNLINK_SOURCE_ACCOUNT ) {
 user_ensure_exists( $f_user_id );
 
 # Everybody may release his own binding from his account page - the /stop command needs
-# access to the chat, which a user who lost the telegram account does not have anymore
+# access to the chat, which a user who lost the MAX account does not have anymore
 if( $f_source == TELEGRAM_UNLINK_SOURCE_ACCOUNT && auth_get_current_user_id() == $f_user_id ) {
     current_user_ensure_unprotected();
 } else {
@@ -43,18 +40,9 @@ if( $f_source == TELEGRAM_UNLINK_SOURCE_ACCOUNT && auth_get_current_user_id() ==
     access_ensure_global_level( config_get( 'manage_plugin_threshold' ) );
 }
 
-$t_unlink_transport = is_blank( $f_transport ) ? NULL : messenger_transport( $f_transport );
-
-if( $t_unlink_transport === NULL ) {
-    $t_confirm_message = auth_get_current_user_id() == $f_user_id
-                              ? plugin_lang_get( 'user_unlink_confirm_self' )
-                              : sprintf( plugin_lang_get( 'user_unlink_confirm' ), string_display_line( user_get_field( $f_user_id, 'username' ) ) );
-} else {
-    # The messenger is named: a user may be linked in several of them
-    $t_confirm_message = auth_get_current_user_id() == $f_user_id
-                              ? sprintf( plugin_lang_get( 'user_unlink_confirm_self_messenger' ), string_display_line( $t_unlink_transport->title() ) )
-                              : sprintf( plugin_lang_get( 'user_unlink_confirm_messenger' ), string_display_line( user_get_field( $f_user_id, 'username' ) ), string_display_line( $t_unlink_transport->title() ) );
-}
+$t_confirm_message = auth_get_current_user_id() == $f_user_id
+                          ? plugin_lang_get( 'user_unlink_confirm_self' )
+                          : sprintf( plugin_lang_get( 'user_unlink_confirm' ), string_display_line( user_get_field( $f_user_id, 'username' ) ) );
 
 # From his own account page the user gets the confirmation in the chat as he does for
 # /stop; an administrative unlink asks whether to tell the chat, the setting being the
@@ -75,7 +63,7 @@ if( $f_source == TELEGRAM_UNLINK_SOURCE_ACCOUNT ) {
 }
 
 # The chat keeps working as an anonymous one and asks for a binding on the next message
-telegram_bot_user_unlink( $f_user_id, $t_notify, is_blank( $f_transport ) ? NULL : $f_transport );
+telegram_bot_user_unlink( $f_user_id, $t_notify );
 
 form_security_purge( 'telegram_user_unlink' );
 

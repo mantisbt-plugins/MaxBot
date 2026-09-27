@@ -37,7 +37,7 @@ print_account_menu( 'account_telegram_register_page' );
     <div class="space-10"></div>
 
     <div class="form-container">
-        <?php if( telegram_user_accounts_complete( $t_user_id ) ) { ?>
+        <?php if( user_is_associated_with_telegram( $t_user_id ) ) { ?>
             <div class="alert alert-success">
                 <p class="bigger-110"><?php echo plugin_lang_get( 'account_telegram_register_already_done' ) ?></p>
                 <p><a href="<?php echo plugin_page( 'account_telegram_prefs_page' ) ?>"><?php echo plugin_lang_get( 'account_telegram_prefs_page_header' ) ?></a></p>
@@ -60,13 +60,8 @@ print_account_menu( 'account_telegram_register_page' );
                                 <table class="table table-bordered table-condensed table-striped">
                                     <tr>
                                         <th class="category" width="35%">
-                                            <?php
-                                            # One line per messenger the account is not linked in yet: the code
-                                            # comes from the chat of whichever of them the user writes to
-                                            foreach( telegram_user_transports_unlinked( $t_user_id ) as $t_name => $t_transport ) {
-                                                echo sprintf( plugin_lang_get( 'messenger_subscribe_bot' ), string_display_line( $t_transport->title() ), telegram_bot_chat_link_html( $t_name ) ) . '<br>';
-                                            }
-                                            ?>
+                                            <?php echo sprintf( plugin_lang_get( 'messenger_subscribe_bot' ), telegram_bot_chat_link_html() ) ?>
+                                            <br>
                                             <br><span class="small"><?php echo plugin_lang_get( 'account_telegram_register_notice' ) ?></span>
                                         </th>
                                         <td class="left">

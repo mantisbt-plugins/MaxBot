@@ -18,16 +18,20 @@
 /**
  * The MAX messenger, spoken to through its Bot API over plain HTTP.
  *
+ * The dialogs speak one neutral language: a message is an array of its 'text',
+ * its 'reply_markup' ( a TelegramBotKeyboard ) and the 'reply_to_message_id' it
+ * answers, an incoming update is a TelegramBotUpdate. This class turns them into
+ * the requests of the Bot API and back.
+ *
  * A chat of MAX is addressed by the user id of its member, not by the id of the
  * dialog: a message goes to POST /messages?user_id=, and a message is edited or
  * removed by its id alone, which is unique across the chats. The ids of the
  * messages are strings ( "mid.…" ).
  *
- * Nothing of this class runs while the transport is switched off: every call
- * talking to MAX checks is_enabled() first, except for the setup calls of the
- * settings page, which need the token only.
+ * Nothing of this class talks to MAX while the token is not set: every call
+ * sending or polling checks is_enabled() first.
  */
-class MaxTransport implements TelegramBotTransport {
+class MaxBotApi {
 
         const API_URL = 'https://platform-api2.max.ru';
 
@@ -97,26 +101,23 @@ class MaxTransport implements TelegramBotTransport {
          */
         private $last_error = '';
 
-        public function name() {
-                return 'max';
-        }
-
-        public function title() {
-                return 'MAX';
-        }
-
+        /**
+         * Whether the token of the bot is set.
+         *
+         * @return boolean
+         */
         public function is_enabled() {
-                return ON == plugin_config_get( 'max_enabled' ) && !is_blank( (string)plugin_config_get( 'max_api_key' ) );
+                return !is_blank( (string)plugin_config_get( 'api_key' ) );
         }
 
-        public function text_length_max() {
-                return self::TEXT_LENGTH_MAX;
-        }
-
-        public function file_size_max() {
-                return self::FILE_SIZE_MAX;
-        }
-
+        /**
+         * Send a message to a chat. A text longer than a message of MAX goes as
+         * several messages.
+         *
+         * @param string $p_chat_id Chat: the user id of MAX.
+         * @param array  $p_message The message.
+         * @return array Ids of the messages sent, empty when nothing went through.
+         */
         public function send( $p_chat_id, array $p_message ) {
                 if( !$this->is_enabled() ) {
                         return array();
@@ -126,7 +127,7 @@ class MaxTransport implements TelegramBotTransport {
                 $t_text = isset( $p_message['text'] ) ? (string)$p_message['text'] : '';
                 $t_ids  = array();
 
-                # The buttons go with every part of a long text, the way Telegram does it
+                # The buttons go with every part of a long text
                 do {
                         $t_part = mb_substr( $t_text, 0, self::TEXT_LENGTH_MAX );
                         $t_text = mb_substr( $t_text, self::TEXT_LENGTH_MAX );
@@ -144,10 +145,19 @@ class MaxTransport implements TelegramBotTransport {
         }
 
         /**
+         * Replace the text and the buttons of a message sent by the bot. A message
+         * without a 'text' key only gets its buttons replaced; the chat is not
+         * needed, the id of a message is unique across the chats.
+         *
          * An edit replaces the attachments of the message as a whole, the keyboard
          * being one of them, and keeps them when none are given. The current message
          * is therefore read when the text is to be kept or the keyboard removed, and
          * the files it carries are sent back along with the new keyboard.
+         *
+         * @param string $p_chat_id    Chat of the message.
+         * @param string $p_message_id Message to edit.
+         * @param array  $p_message    New content of the message.
+         * @return boolean
          */
         public function edit( $p_chat_id, $p_message_id, array $p_message ) {
                 if( !$this->is_enabled() ) {
@@ -196,8 +206,13 @@ class MaxTransport implements TelegramBotTransport {
         }
 
         /**
-         * In a dialog the bot removes its own messages only: the messages of the user
-         * answering the questions of a dialog stay in the chat, which is no error.
+         * Remove a message from the chat, best effort. In a dialog the bot removes
+         * its own messages only: the messages of the user answering the questions
+         * of a dialog stay in the chat, which is no error.
+         *
+         * @param string $p_chat_id    Chat of the message.
+         * @param string $p_message_id Message to remove.
+         * @return boolean
          */
         public function delete( $p_chat_id, $p_message_id ) {
                 if( !$this->is_enabled() || is_blank( (string)$p_message_id ) ) {
@@ -210,9 +225,13 @@ class MaxTransport implements TelegramBotTransport {
         }
 
         /**
-         * MAX has no pop-up alert: the text goes as a notification of the press.
-         * Whether a press must be answered at all is not documented, so a press
-         * without a text is answered too, quietly.
+         * Acknowledge the press of a button. MAX has no pop-up alert: the text goes
+         * as a notification of the press. Whether a press must be answered at all
+         * is not documented, so a press without a text is answered too, quietly.
+         *
+         * @param string $p_callback_id Id of the press, TelegramBotUpdate::$callback_id.
+         * @param string $p_text        Text shown to the user, empty for none.
+         * @return boolean
          */
         public function answer_callback( $p_callback_id, $p_text = '' ) {
                 if( !$this->is_enabled() || is_blank( (string)$p_callback_id ) ) {
@@ -229,10 +248,16 @@ class MaxTransport implements TelegramBotTransport {
         }
 
         /**
-         * The file is uploaded first and sent then by its token, in the message
-         * carrying the text; a file still being processed is sent again after a
-         * pause. A text longer than a message goes as messages of its own and the
-         * file as a reply to them.
+         * Send a file along with a message. The file is uploaded first and sent then
+         * by its token, in the message carrying the text; a file still being
+         * processed is sent again after a pause. A text longer than a message goes
+         * as messages of its own and the file as a reply to them.
+         *
+         * @param string $p_chat_id   Chat: the user id of MAX.
+         * @param string $p_file_name Name of the file shown in the chat.
+         * @param string $p_content   Content of the file.
+         * @param array  $p_message   The message going with the file, may be empty.
+         * @return array Ids of the messages sent, empty when the file did not go through.
          */
         public function send_document( $p_chat_id, $p_file_name, $p_content, array $p_message ) {
                 if( !$this->is_enabled() ) {
@@ -295,16 +320,13 @@ class MaxTransport implements TelegramBotTransport {
         }
 
         /**
-         * The Bot API tells nothing about a user by his id: the name is known from
-         * the updates only, which the plugin does not keep.
-         */
-        public function account_name( $p_account_id ) {
-                return '';
-        }
-
-        /**
-         * A file of MAX is downloaded straight from the url of its attachment. A
-         * photo or a video has no name, one is made up out of its type.
+         * Download a file of an incoming message into the download path of the
+         * plugin. A file of MAX is downloaded straight from the url of its
+         * attachment; a photo or a video has no name, one is made up out of its type.
+         *
+         * @param TelegramBotFile $p_file File to download.
+         * @return array 'tmp_name' => path of the downloaded file, 'name' => name of the file.
+         * @throws Exception With a message fit for the user when the file cannot be had.
          */
         public function download( TelegramBotFile $p_file ) {
                 if( !$this->is_enabled() || is_blank( $p_file->ref ) ) {
@@ -346,7 +368,10 @@ class MaxTransport implements TelegramBotTransport {
         }
 
         /**
-         * A request of the webhook carries a single update.
+         * Updates carried by the body of a request of the webhook, a single one.
+         *
+         * @param string $p_raw Body of the request.
+         * @return array TelegramBotUpdate objects, empty for a body carrying none.
          */
         public function updates_parse( $p_raw ) {
                 $t_update = json_decode( (string)$p_raw, TRUE, 512, JSON_BIGINT_AS_STRING );
@@ -363,13 +388,22 @@ class MaxTransport implements TelegramBotTransport {
         }
 
         /**
+         * Wait for the updates the long polling way.
+         *
          * The marker of the answer is passed as it is to the next call, which
          * confirms the updates before it; it is always passed, the updates asked for
          * without one are described differently by the sources of the Bot API.
+         *
+         * @param string  $p_marker      Marker of the next expected update, as the
+         *                               previous call gave it back; confirms the ones before.
+         * @param integer $p_timeout     Seconds MAX holds the connection, 0 for none.
+         * @param string  $p_next_marker Out: marker to ask for on the next call.
+         * @return array TelegramBotUpdate objects.
+         * @throws Exception When MAX refuses the request.
          */
-        public function updates_poll( $p_offset, $p_timeout, &$p_next_offset ) {
+        public function updates_poll( $p_marker, $p_timeout, &$p_next_marker ) {
                 if( !$this->is_enabled() ) {
-                        throw new Exception( 'MAX is switched off' );
+                        throw new Exception( 'The token of the bot is not set' );
                 }
 
                 $t_query = array(
@@ -377,8 +411,8 @@ class MaxTransport implements TelegramBotTransport {
                                           'types'   => implode( ',', self::$update_types ),
                 );
 
-                if( !is_blank( (string)$p_offset ) ) {
-                        $t_query['marker'] = (string)$p_offset;
+                if( !is_blank( (string)$p_marker ) ) {
+                        $t_query['marker'] = (string)$p_marker;
                 }
 
                 $t_result = $this->request( 'GET', '/updates', array( 'query' => $t_query ), /* quiet */ TRUE );
@@ -387,7 +421,7 @@ class MaxTransport implements TelegramBotTransport {
                         throw new Exception( $this->last_error );
                 }
 
-                $p_next_offset = isset( $t_result['marker'] ) && !is_blank( (string)$t_result['marker'] ) ? (string)$t_result['marker'] : (string)$p_offset;
+                $p_next_marker = isset( $t_result['marker'] ) && !is_blank( (string)$t_result['marker'] ) ? (string)$t_result['marker'] : (string)$p_marker;
 
                 $t_results = array();
 
@@ -406,18 +440,18 @@ class MaxTransport implements TelegramBotTransport {
 
         /**
          * Subscribe the bot to the updates delivered to the given url. A new secret
-         * is made for the subscription and kept in max_webhook_secret; the previous
+         * is made for the subscription and kept in webhook_secret; the previous
          * one comes back when the subscription is refused.
          *
          * @param string $p_url Url MAX posts the updates to, https on the port 443.
          * @return boolean
          */
         public function webhook_set( $p_url ) {
-                $t_secret_previous = (string)plugin_config_get( 'max_webhook_secret' );
+                $t_secret_previous = (string)plugin_config_get( 'webhook_secret' );
                 $t_secret          = bin2hex( random_bytes( 16 ) );
 
                 # kept before the subscription: the first update may come before the answer
-                plugin_config_set( 'max_webhook_secret', $t_secret );
+                plugin_config_set( 'webhook_secret', $t_secret );
 
                 $t_result = $this->request( 'POST', '/subscriptions', array(
                                           'json' => array(
@@ -428,7 +462,7 @@ class MaxTransport implements TelegramBotTransport {
                         ) );
 
                 if( $t_result === NULL ) {
-                        plugin_config_set( 'max_webhook_secret', $t_secret_previous );
+                        plugin_config_set( 'webhook_secret', $t_secret_previous );
                         return FALSE;
                 }
 
@@ -514,7 +548,7 @@ class MaxTransport implements TelegramBotTransport {
          * @return boolean
          */
         public function secret_is_valid( $p_header_value ) {
-                $t_secret = (string)plugin_config_get( 'max_webhook_secret' );
+                $t_secret = (string)plugin_config_get( 'webhook_secret' );
 
                 return !is_blank( $t_secret ) && hash_equals( $t_secret, (string)$p_header_value );
         }
@@ -528,14 +562,13 @@ class MaxTransport implements TelegramBotTransport {
         private function update_map( array $p_update ) {
                 $t_type = isset( $p_update['update_type'] ) ? (string)$p_update['update_type'] : '';
 
-                $t_update            = new TelegramBotUpdate();
-                $t_update->transport = $this->name();
-                $t_update->lang      = isset( $p_update['user_locale'] ) ? (string)$p_update['user_locale'] : NULL;
+                $t_update       = new TelegramBotUpdate();
+                $t_update->lang = isset( $p_update['user_locale'] ) ? (string)$p_update['user_locale'] : NULL;
 
                 switch( $t_type ) {
                         case 'bot_started':
                                 # The start of the dialog, from a deep link or not, is the /start
-                                # command of Telegram
+                                # command
                                 $t_user_id = $this->user_id( isset( $p_update['user'] ) ? $p_update['user'] : NULL );
 
                                 if( $t_user_id === '' ) {
@@ -547,7 +580,7 @@ class MaxTransport implements TelegramBotTransport {
                                 $t_update->command             = 'start';
                                 $t_update->command_payload     = isset( $p_update['payload'] ) ? trim( (string)$p_update['payload'] ) : '';
                                 $t_update->message             = new TelegramBotMessage();
-                                $t_update->message->chat_id    = messenger_address_make( $this->name(), $t_user_id );
+                                $t_update->message->chat_id    = $t_user_id;
 
                                 return $t_update;
 
@@ -611,7 +644,7 @@ class MaxTransport implements TelegramBotTransport {
          * @return TelegramBotMessage
          */
         private function message_map( array $p_message, $p_user_id ) {
-                $t_address = messenger_address_make( $this->name(), $p_user_id );
+                $t_address = (string)$p_user_id;
                 $t_body    = isset( $p_message['body'] ) && is_array( $p_message['body'] ) ? $p_message['body'] : array();
                 $t_link    = isset( $p_message['link'] ) && is_array( $p_message['link'] ) ? $p_message['link'] : NULL;
                 $t_linked  = $t_link !== NULL && isset( $t_link['message'] ) && is_array( $t_link['message'] ) ? $t_link['message'] : NULL;
@@ -645,7 +678,7 @@ class MaxTransport implements TelegramBotTransport {
          * The neutral message out of the body of a message of the Bot API.
          *
          * @param array  $p_body    Body of the message: mid, text, attachments.
-         * @param string $p_address Address of the chat.
+         * @param string $p_address Chat: the user id of MAX.
          * @return TelegramBotMessage
          */
         private function body_map( array $p_body, $p_address ) {
@@ -664,12 +697,11 @@ class MaxTransport implements TelegramBotTransport {
                                 continue;
                         }
 
-                        $t_message->file            = new TelegramBotFile();
-                        $t_message->file->transport = $this->name();
-                        $t_message->file->ref       = (string)$t_attachment['payload']['url'];
-                        $t_message->file->name      = isset( $t_attachment['filename'] ) ? (string)$t_attachment['filename'] : '';
-                        $t_message->file->size      = isset( $t_attachment['size'] ) ? (int)$t_attachment['size'] : 0;
-                        $t_message->file->kind      = $t_kinds[$t_type];
+                        $t_message->file       = new TelegramBotFile();
+                        $t_message->file->ref  = (string)$t_attachment['payload']['url'];
+                        $t_message->file->name = isset( $t_attachment['filename'] ) ? (string)$t_attachment['filename'] : '';
+                        $t_message->file->size = isset( $t_attachment['size'] ) ? (int)$t_attachment['size'] : 0;
+                        $t_message->file->kind = $t_kinds[$t_type];
                         break;
                 }
 
@@ -1007,7 +1039,7 @@ class MaxTransport implements TelegramBotTransport {
          * @return \GuzzleHttp\Client
          */
         private function client() {
-                $t_token = (string)plugin_config_get( 'max_api_key' );
+                $t_token = (string)plugin_config_get( 'api_key' );
 
                 if( $this->client !== NULL && $this->client_token === $t_token ) {
                         return $this->client;
@@ -1046,7 +1078,7 @@ class MaxTransport implements TelegramBotTransport {
                 }
 
                 if( $this->logger !== FALSE ) {
-                        $this->logger->debug( 'MAX ' . $p_line );
+                        $this->logger->write( $p_line );
                 }
         }
 }

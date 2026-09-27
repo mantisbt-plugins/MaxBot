@@ -16,25 +16,24 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Every binding of a MantisBT user to a messenger account.
+ * Every binding of a MantisBT user to a MAX account.
  *
- * @return array Rows 'mantis_user_id', 'transport', 'account_id', ordered by user.
+ * @return array Rows 'mantis_user_id', 'account_id', ordered by user.
  */
 function telegram_accounts_all_get() {
     $t_account_table = plugin_table( 'account' );
 
     db_param_push();
 
-    $t_query  = "SELECT mantis_user_id, transport, account_id
+    $t_query  = "SELECT mantis_user_id, account_id
 			FROM $t_account_table
-			ORDER BY mantis_user_id, transport";
+			ORDER BY mantis_user_id";
     $t_result = db_query( $t_query );
 
     $t_rows = array();
     while( $t_row = db_fetch_array( $t_result ) ) {
         $t_rows[] = array(
                                   'mantis_user_id' => (int)$t_row['mantis_user_id'],
-                                  'transport'      => $t_row['transport'],
                                   'account_id'     => (string)$t_row['account_id'],
         );
     }
@@ -43,58 +42,41 @@ function telegram_accounts_all_get() {
 }
 
 /**
- * The messenger accounts a MantisBT user is linked to, one per transport.
+ * The MAX account a MantisBT user is linked to.
  *
  * @param integer $p_user_id MantisBT user id.
- * @return array array( transport name => account id ).
+ * @return string Account id, empty when the user is not linked.
  */
-function telegram_accounts_get( $p_user_id ) {
+function telegram_account_get( $p_user_id ) {
     $t_account_table = plugin_table( 'account' );
 
     db_param_push();
 
-    $t_query  = "SELECT transport, account_id
+    $t_query  = "SELECT account_id
 			FROM $t_account_table
 			WHERE mantis_user_id=" . db_param();
     $t_result = db_query( $t_query, array( (int)$p_user_id ) );
 
-    $t_accounts = array();
-    while( $t_row = db_fetch_array( $t_result ) ) {
-        $t_accounts[$t_row['transport']] = (string)$t_row['account_id'];
-    }
+    $t_row = db_fetch_array( $t_result );
 
-    return $t_accounts;
+    return $t_row === false ? '' : (string)$t_row['account_id'];
 }
 
 /**
- * The account of a messenger a MantisBT user is linked to.
+ * The MantisBT user a MAX account is linked to.
  *
- * @param integer $p_user_id   MantisBT user id.
- * @param string  $p_transport Name of the transport.
- * @return string Account id, empty when the user is not linked to the messenger.
- */
-function telegram_account_get( $p_user_id, $p_transport ) {
-    $t_accounts = telegram_accounts_get( $p_user_id );
-
-    return isset( $t_accounts[$p_transport] ) ? $t_accounts[$p_transport] : '';
-}
-
-/**
- * The MantisBT user a messenger account is linked to.
- *
- * @param string $p_transport  Name of the transport.
- * @param string $p_account_id Account of the messenger.
+ * @param string $p_account_id Account of MAX, the user id.
  * @return integer MantisBT user id, 0 when the account is not linked.
  */
-function telegram_account_user_get( $p_transport, $p_account_id ) {
+function telegram_account_user_get( $p_account_id ) {
     $t_account_table = plugin_table( 'account' );
 
     db_param_push();
 
     $t_query  = "SELECT mantis_user_id
 			FROM $t_account_table
-			WHERE transport=" . db_param() . ' AND account_id=' . db_param();
-    $t_result = db_query( $t_query, array( (string)$p_transport, (string)$p_account_id ) );
+			WHERE account_id=" . db_param();
+    $t_result = db_query( $t_query, array( (string)$p_account_id ) );
 
     $t_row = db_fetch_array( $t_result );
 
@@ -102,82 +84,58 @@ function telegram_account_user_get( $p_transport, $p_account_id ) {
 }
 
 /**
- * Link a messenger account to a MantisBT user. A user has one account per
- * messenger and an account belongs to one user, so the bindings standing in
- * the way are replaced.
+ * Link a MAX account to a MantisBT user. A user has one account and an account
+ * belongs to one user, so the bindings standing in the way are replaced.
  *
  * @param integer $p_user_id    MantisBT user id.
- * @param string  $p_transport  Name of the transport.
- * @param string  $p_account_id Account of the messenger.
+ * @param string  $p_account_id Account of MAX, the user id.
  * @return void
  */
-function telegram_account_link( $p_user_id, $p_transport, $p_account_id ) {
+function telegram_account_link( $p_user_id, $p_account_id ) {
     $t_account_table = plugin_table( 'account' );
 
     db_param_push();
 
     $t_query = "DELETE FROM $t_account_table
-			WHERE transport=" . db_param() . '
-			AND ( account_id=' . db_param() . ' OR mantis_user_id=' . db_param() . ' )';
-    db_query( $t_query, array( (string)$p_transport, (string)$p_account_id, (int)$p_user_id ) );
+			WHERE account_id=" . db_param() . ' OR mantis_user_id=' . db_param();
+    db_query( $t_query, array( (string)$p_account_id, (int)$p_user_id ) );
 
     db_param_push();
 
     $t_query = "INSERT INTO $t_account_table
-                                                ( mantis_user_id, transport, account_id )
+                                                ( mantis_user_id, account_id )
                                               VALUES
-                                                ( " . db_param() . ',' . db_param() . ',' . db_param() . ')';
-    db_query( $t_query, array( (int)$p_user_id, (string)$p_transport, (string)$p_account_id ) );
+                                                ( " . db_param() . ',' . db_param() . ')';
+    db_query( $t_query, array( (int)$p_user_id, (string)$p_account_id ) );
 }
 
 # Deep link base of a chat with a bot in MAX, followed by the name of the bot
-define( 'TELEGRAM_MAX_CHAT_URL', 'https://max.ru/' );
+define( 'TELEGRAM_BOT_CHAT_URL', 'https://max.ru/' );
 
 /**
- * The chat with the bot in a messenger, for the links of the pages of MantisBT.
+ * The chat with the bot, for the links of the pages of MantisBT.
  *
- * @param string $p_transport Name of the transport.
  * @return array|null array( 'name' => name of the bot as shown, 'url' => link opening
  *                    the chat ); NULL when the name of the bot is not known.
  */
-function telegram_bot_chat_get( $p_transport ) {
-    switch( $p_transport ) {
-        case 'tg':
-            $t_bot_name = (string)plugin_config_get( 'bot_name' );
-            $t_chat     = array( 'name' => '@' . $t_bot_name, 'url' => plugin_config_get( 'telegram_url' ) . $t_bot_name );
-            break;
-        case 'max':
-            # the name is taken from the API when the token is saved
-            $t_bot_name = (string)plugin_config_get( 'max_bot_name', '' );
-            $t_chat     = array( 'name' => $t_bot_name, 'url' => TELEGRAM_MAX_CHAT_URL . rawurlencode( $t_bot_name ) );
-            break;
-        default:
-            return NULL;
+function telegram_bot_chat_get() {
+    # the name is taken from the API when the token is saved
+    $t_bot_name = (string)plugin_config_get( 'bot_name', '' );
+
+    if( is_blank( $t_bot_name ) ) {
+        return NULL;
     }
 
-    return is_blank( $t_bot_name ) ? NULL : $t_chat;
+    return array( 'name' => $t_bot_name, 'url' => TELEGRAM_BOT_CHAT_URL . rawurlencode( $t_bot_name ) );
 }
 
 /**
- * Whether the transport of the given name is known and switched on.
+ * Html of the link opening the chat with the bot.
  *
- * @param string $p_transport Name of the transport.
- * @return boolean
- */
-function telegram_transport_is_enabled( $p_transport ) {
-    $t_transport = messenger_transport( $p_transport );
-
-    return $t_transport !== NULL && $t_transport->is_enabled();
-}
-
-/**
- * Html of the link opening the chat with the bot in a messenger.
- *
- * @param string $p_transport Name of the transport.
  * @return string A dash when the name of the bot is not known.
  */
-function telegram_bot_chat_link_html( $p_transport ) {
-    $t_chat = telegram_bot_chat_get( $p_transport );
+function telegram_bot_chat_link_html() {
+    $t_chat = telegram_bot_chat_get();
 
     if( $t_chat === NULL ) {
         return '&#8212;';
@@ -187,89 +145,47 @@ function telegram_bot_chat_link_html( $p_transport ) {
 }
 
 /**
- * The transports a MantisBT user may still link an account of: the enabled ones
- * he has no account in.
- *
- * @param integer $p_user_id MantisBT user id.
- * @return array TelegramBotTransport objects keyed by name.
- */
-function telegram_user_transports_unlinked( $p_user_id ) {
-    $t_accounts = telegram_accounts_get( $p_user_id );
-    $t_result   = array();
-
-    foreach( messenger_transports() as $t_name => $t_transport ) {
-        if( $t_transport->is_enabled() && !isset( $t_accounts[$t_name] ) ) {
-            $t_result[$t_name] = $t_transport;
-        }
-    }
-
-    return $t_result;
-}
-
-/**
- * Whether a MantisBT user is linked to an account of any messenger.
+ * Whether a MantisBT user is linked to a MAX account.
  *
  * @param integer $p_user_id MantisBT user id.
  * @return boolean
  */
 function user_is_associated_with_telegram( $p_user_id ) {
-    return count( telegram_accounts_get( $p_user_id ) ) > 0;
+    return !is_blank( telegram_account_get( $p_user_id ) );
 }
 
 /**
- * Whether a MantisBT user is linked to every messenger the bot talks through,
- * which leaves nothing to link with a PIN code.
- *
- * @param integer $p_user_id MantisBT user id.
- * @return boolean
- */
-function telegram_user_accounts_complete( $p_user_id ) {
-    return count( telegram_user_transports_unlinked( $p_user_id ) ) == 0;
-}
-
-/**
- * Release the binding between a MantisBT user and his messenger accounts, the way the
+ * Release the binding between a MantisBT user and his MAX account, the way the
  * /stop command does it - but without access to the chat, so that it also works for a
  * lost account, for an administrator and for a user being deleted.
  *
  * Notification preferences are kept: they are of use again once the user comes back.
  *
- * @param integer     $p_user_id   A valid user identifier.
- * @param boolean     $p_notify    Whether to tell the chat that it is unsubscribed.
- * @param string|null $p_transport Messenger to unlink, NULL for all of them.
- * @return array The accounts unlinked, array( transport name => account id ).
+ * @param integer $p_user_id A valid user identifier.
+ * @param boolean $p_notify  Whether to tell the chat that it is unsubscribed.
+ * @return string The account unlinked, empty when the user was not linked.
  */
-function telegram_bot_user_unlink( $p_user_id, $p_notify = true, $p_transport = NULL ) {
+function telegram_bot_user_unlink( $p_user_id, $p_notify = true ) {
 
-    $t_accounts = telegram_accounts_get( $p_user_id );
+    $t_account_id = telegram_account_get( $p_user_id );
 
-    if( $p_transport !== NULL ) {
-        $t_accounts = isset( $t_accounts[$p_transport] ) ? array( $p_transport => $t_accounts[$p_transport] ) : array();
-    }
-
-    if( empty( $t_accounts ) ) {
-        return array();
+    if( is_blank( $t_account_id ) ) {
+        return '';
     }
 
     $t_account_table = plugin_table( 'account' );
 
-    foreach( $t_accounts as $t_transport => $t_account_id ) {
-        $t_address = messenger_address_make( $t_transport, $t_account_id );
+    telegram_message_link_delete( $t_account_id );
 
-        telegram_message_realatationship_delete( $t_address );
+    db_param_push();
+    db_query( "DELETE FROM $t_account_table WHERE account_id=" . db_param(), array( $t_account_id ) );
 
-        db_param_push();
-        db_query( "DELETE FROM $t_account_table WHERE transport=" . db_param() . ' AND account_id=' . db_param(),
-                array( $t_transport, $t_account_id ) );
+    telegram_registration_complete( $t_account_id );
 
-        telegram_registration_complete( $t_transport, $t_account_id );
+    plugin_log_event( 'Account ' . $t_account_id . ' is unlinked from mantisbt user ' . user_get_username( $p_user_id ) );
 
-        plugin_log_event( 'Account ' . $t_address . ' is unlinked from mantisbt user ' . user_get_username( $p_user_id ) );
-
-        # a switched off messenger is not spoken to, its binding is only dropped
-        if( $p_notify && telegram_transport_is_enabled( $t_transport ) ) {
-            messenger_send( $t_address, array( 'text' => plugin_lang_get( 'end_message' ) ) );
-        }
+    if( $p_notify ) {
+        messenger_send( $t_account_id, array( 'text' => plugin_lang_get( 'end_message' ) ) );
     }
 
     # the draft of an unfinished issue belongs to the user, not to the chat
@@ -281,7 +197,7 @@ function telegram_bot_user_unlink( $p_user_id, $p_notify = true, $p_transport = 
     # and so does the dialog changing the status of an issue
     telegram_status_change_draft_clear( $p_user_id );
 
-    return $t_accounts;
+    return $t_account_id;
 }
 
 /**
@@ -313,14 +229,13 @@ function telegram_user_config_delete_all( $p_user_id ) {
 }
 
 /**
- * Return the state of the registration a messenger account has started: the PIN
+ * Return the state of the registration a MAX account has started: the PIN
  * code issued to it and the id of the invitation the bot has sent.
  *
- * @param string $p_transport  Name of the transport.
- * @param string $p_account_id Account of the messenger.
+ * @param string $p_account_id Account of MAX, the user id.
  * @return array|false Database row, false when no registration is in progress.
  */
-function telegram_registration_state_get( $p_transport, $p_account_id ) {
+function telegram_registration_state_get( $p_account_id ) {
 
     $t_registration_table = plugin_table( 'registration' );
 
@@ -328,31 +243,30 @@ function telegram_registration_state_get( $p_transport, $p_account_id ) {
 
     $t_query  = "SELECT pin_code, timestamp, message_id
 			FROM $t_registration_table
-			WHERE transport=" . db_param() . ' AND account_id=' . db_param();
-    $t_result = db_query( $t_query, array( (string)$p_transport, (string)$p_account_id ) );
+			WHERE account_id=" . db_param();
+    $t_result = db_query( $t_query, array( (string)$p_account_id ) );
 
     return db_fetch_array( $t_result );
 }
 
 /**
- * Return the PIN code the owner of a messenger account has to enter in his MantisBT
+ * Return the PIN code the owner of a MAX account has to enter in his MantisBT
  * account preferences. A code issued earlier and still valid is reused, so that every
  * message the bot sends to an unregistred user shows the same code.
  *
  * The state row is created even when the code is not going to be shown: it also
  * keeps the id of the invitation, which is needed to remove that message later.
  *
- * @param string $p_transport  Name of the transport.
- * @param string $p_account_id Account of the messenger.
+ * @param string $p_account_id Account of MAX, the user id.
  * @return integer PIN code.
  */
-function telegram_pin_code_get( $p_transport, $p_account_id ) {
+function telegram_pin_code_get( $p_account_id ) {
 
     $t_registration_table = plugin_table( 'registration' );
 
     telegram_registration_states_clear_expired();
 
-    $t_state = telegram_registration_state_get( $p_transport, $p_account_id );
+    $t_state = telegram_registration_state_get( $p_account_id );
 
     if( $t_state !== false && $t_state['timestamp'] >= db_now() - TELEGRAM_PIN_CODE_TTL ) {
         return (int) $t_state['pin_code'];
@@ -364,16 +278,16 @@ function telegram_pin_code_get( $p_transport, $p_account_id ) {
 
     if( $t_state === false ) {
         $t_query = "INSERT INTO $t_registration_table
-                                                ( transport, account_id, pin_code, timestamp, message_id )
+                                                ( account_id, pin_code, timestamp, message_id )
                                               VALUES
-                                                ( " . db_param() . ',' . db_param() . ',' . db_param() . ',' . db_param() . ',' . db_param() . ')';
-        db_query( $t_query, array( (string)$p_transport, (string)$p_account_id, $t_pin_code, db_now(), '' ) );
+                                                ( " . db_param() . ',' . db_param() . ',' . db_param() . ',' . db_param() . ')';
+        db_query( $t_query, array( (string)$p_account_id, $t_pin_code, db_now(), '' ) );
     } else {
         # The invitation is still in the chat, only the code has expired
         $t_query = "UPDATE $t_registration_table
 			SET pin_code=" . db_param() . ', timestamp=' . db_param() . '
-			WHERE transport=' . db_param() . ' AND account_id=' . db_param();
-        db_query( $t_query, array( $t_pin_code, db_now(), (string)$p_transport, (string)$p_account_id ) );
+			WHERE account_id=' . db_param();
+        db_query( $t_query, array( $t_pin_code, db_now(), (string)$p_account_id ) );
     }
 
     return $t_pin_code;
@@ -408,7 +322,7 @@ function telegram_pin_code_free_get() {
         }
     }
 
-    plugin_error( 'ERROR_TG_PIN_CODE_GENERATE', ERROR );
+    plugin_error( 'ERROR_PIN_CODE_GENERATE', ERROR );
 }
 
 /**
@@ -522,14 +436,14 @@ function telegram_pin_code_attempts_reset( $p_user_id ) {
 }
 
 /**
- * Return the messenger account a PIN code was issued to.
+ * Return the MAX account a PIN code was issued to.
  *
  * @param integer $p_pin_code PIN code entered by the user.
  * @param boolean $p_expired  True to look among the expired codes: the state row
  *                            outlives the code itself, so the chat is still known
  *                            and a fresh code can be sent to it.
- * @return array|null array( 'transport' => ..., 'account_id' => ... ), NULL if the
- *                    code is unknown (or, for $p_expired, still valid).
+ * @return string|null The account id, NULL if the code is unknown (or, for
+ *                     $p_expired, still valid).
  */
 function telegram_pin_code_account_get( $p_pin_code, $p_expired = false ) {
 
@@ -541,7 +455,7 @@ function telegram_pin_code_account_get( $p_pin_code, $p_expired = false ) {
 
     db_param_push();
 
-    $t_query  = "SELECT transport, account_id
+    $t_query  = "SELECT account_id
 			FROM $t_registration_table
 			WHERE pin_code=" . db_param() . ' AND timestamp' . ( $p_expired ? '<' : '>=' ) . db_param();
     $t_result = db_query( $t_query, array( (int)$p_pin_code, db_now() - TELEGRAM_PIN_CODE_TTL ) );
@@ -551,22 +465,18 @@ function telegram_pin_code_account_get( $p_pin_code, $p_expired = false ) {
         return NULL;
     }
 
-    return array(
-                              'transport'  => $t_row['transport'],
-                              'account_id' => (string)$t_row['account_id'],
-    );
+    return (string)$t_row['account_id'];
 }
 
 /**
  * Remember the invitation the bot has just sent, so that it can be removed from the
  * chat once the accounts are linked.
  *
- * @param string $p_transport  Name of the transport.
- * @param string $p_account_id Account of the messenger.
+ * @param string $p_account_id Account of MAX, the user id.
  * @param string $p_message_id Id of the message sent to the chat, empty for none.
  * @return void
  */
-function telegram_registration_message_id_set( $p_transport, $p_account_id, $p_message_id ) {
+function telegram_registration_message_id_set( $p_account_id, $p_message_id ) {
 
     $t_registration_table = plugin_table( 'registration' );
 
@@ -574,33 +484,29 @@ function telegram_registration_message_id_set( $p_transport, $p_account_id, $p_m
 
     $t_query = "UPDATE $t_registration_table
 			SET message_id=" . db_param() . '
-			WHERE transport=' . db_param() . ' AND account_id=' . db_param();
-    db_query( $t_query, array( (string)$p_message_id, (string)$p_transport, (string)$p_account_id ) );
+			WHERE account_id=' . db_param();
+    db_query( $t_query, array( (string)$p_message_id, (string)$p_account_id ) );
 }
 
 /**
  * Remove the invitation from the chat, leaving the registration state in place.
  * Called before a new invitation is sent, so that only one of them is on screen.
  *
- * @param string $p_transport  Name of the transport.
- * @param string $p_account_id Account of the messenger.
+ * @param string $p_account_id Account of MAX, the user id.
  * @return void
  */
-function telegram_registration_message_remove( $p_transport, $p_account_id ) {
+function telegram_registration_message_remove( $p_account_id ) {
 
-    $t_state = telegram_registration_state_get( $p_transport, $p_account_id );
+    $t_state = telegram_registration_state_get( $p_account_id );
 
     if( $t_state === false || is_blank( (string)$t_state['message_id'] ) ) {
         return;
     }
 
-    # A bot may only delete its own message for a while, an older one just stays;
-    # a switched off messenger is not spoken to at all
-    if( telegram_transport_is_enabled( $p_transport ) ) {
-        messenger_delete( messenger_address_make( $p_transport, $p_account_id ), $t_state['message_id'] );
-    }
+    # Best effort: a message the bot cannot remove any more just stays
+    messenger_delete( $p_account_id, $t_state['message_id'] );
 
-    telegram_registration_message_id_set( $p_transport, $p_account_id, '' );
+    telegram_registration_message_id_set( $p_account_id, '' );
 }
 
 /**
@@ -608,21 +514,20 @@ function telegram_registration_message_remove( $p_transport, $p_account_id ) {
  * including the PIN code, is dropped. An unused code must not survive the binding -
  * anybody who saw it would relink the chat to his own MantisBT account.
  *
- * @param string $p_transport  Name of the transport.
- * @param string $p_account_id Account of the messenger.
+ * @param string $p_account_id Account of MAX, the user id.
  * @return void
  */
-function telegram_registration_complete( $p_transport, $p_account_id ) {
+function telegram_registration_complete( $p_account_id ) {
 
     $t_registration_table = plugin_table( 'registration' );
 
-    telegram_registration_message_remove( $p_transport, $p_account_id );
+    telegram_registration_message_remove( $p_account_id );
 
     db_param_push();
 
     $t_query = "DELETE FROM $t_registration_table
-			WHERE transport=" . db_param() . ' AND account_id=' . db_param();
-    db_query( $t_query, array( (string)$p_transport, (string)$p_account_id ) );
+			WHERE account_id=" . db_param();
+    db_query( $t_query, array( (string)$p_account_id ) );
 }
 
 /**
