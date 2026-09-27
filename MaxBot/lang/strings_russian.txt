@@ -14,15 +14,14 @@
 # along with Customer management plugin for MantisBT.  
 # If not, see <http://www.gnu.org/licenses/>.
 
-$s_plugin_MaxBot_name_plugin_description_page = 'Бот Телеграм';
-$s_plugin_MaxBot_description = 'Добавляет в MantisBT функцию взаимодействия с пользователем через мессенджер Телеграмм.';
+$s_plugin_MaxBot_name_plugin_description_page = 'Бот MAX';
+$s_plugin_MaxBot_description = 'Добавляет в MantisBT функцию взаимодействия с пользователем через мессенджер MAX.';
 
-$s_plugin_MaxBot_config_title = 'Настройка';
 $s_plugin_MaxBot_credential_config_title = 'Настройки учетных данных';
 $s_plugin_MaxBot_connection_config_title = 'Параметры исходящих соединений';
 $s_plugin_MaxBot_registration_config_title = 'Настройки привязки аккаунтов';
 $s_plugin_MaxBot_registration_method = 'Способ привязки аккаунта';
-$s_plugin_MaxBot_registration_method_notice = 'Ссылка срабатывает в одно нажатие, но требует, чтобы MantisBT был доступен с устройства, где запущен Telegram. PIN-код бот показывает в чате, а пользователь вводит его на своей странице настроек Telegram — этот способ работает и тогда, когда MantisBT опубликован только в локальной сети.';
+$s_plugin_MaxBot_registration_method_notice = 'Ссылка срабатывает в одно нажатие, но требует, чтобы MantisBT был доступен с устройства, где запущен MAX. PIN-код бот показывает в чате, а пользователь вводит его на своей странице настроек MAX — этот способ работает и тогда, когда MantisBT опубликован только в локальной сети.';
 $s_plugin_MaxBot_pin_code_attempts_max = 'Лимит попыток ввода PIN-кода';
 $s_plugin_MaxBot_pin_code_attempts_max_notice = 'Сколько неверных PIN-кодов пользователь может ввести в пределах окна блокировки';
 $s_plugin_MaxBot_pin_code_attempts_window = 'Окно блокировки PIN-кода (минут)';
@@ -33,15 +32,15 @@ $s_plugin_MaxBot_registration_method_both = 'Ссылка и PIN-код';
 $s_plugin_MaxBot_admin_unlink_notify = 'Сообщать пользователю, когда администратор отвязывает его аккаунт';
 $s_plugin_MaxBot_admin_unlink_notify_notice = 'Исходное состояние галочки при подтверждении отвязки администратором; решение принимается там, отдельно для каждой отвязки. В чат уходит то же сообщение, что и по команде /stop. Пользователю, который отвязывает себя сам, сообщение отправляется всегда, а при удалении учётной записи MantisBT не отправляется никогда.';
 $s_plugin_MaxBot_user_unlink_notify_user = 'Сообщить пользователю в чат';
-$s_plugin_MaxBot_config_get_update_title = 'Способ получения обновлений от Telegram';
+$s_plugin_MaxBot_config_get_update_title = 'Способ получения обновлений от MAX';
 $s_plugin_MaxBot_calendar_config_page = 'Интеграция с плагином Calendar';
 $s_plugin_MaxBot_calendar_config_title = 'Интеграция с плагином Calendar';
 $s_plugin_MaxBot_calendar_integration_enabled = 'Интеграция с плагином Calendar';
 $s_plugin_MaxBot_calendar_integration_enabled_notice = 'Если выключено, бот ведёт себя так, будто плагин Calendar не установлен: события из чата не создаются, уведомления и напоминания о событиях не отправляются, настройки ниже не применяются.';
 $s_plugin_MaxBot_calendar_reminders_enabled = 'Напоминания о приближении событий';
-$s_plugin_MaxBot_calendar_reminders_enabled_notice = 'Напоминания рассылает плагин Calendar по своим правилам и своим адресатам; здесь решается только, дублировать ли их в Telegram. Каждый пользователь может отключить их на своей странице настроек Telegram.';
+$s_plugin_MaxBot_calendar_reminders_enabled_notice = 'Напоминания рассылает плагин Calendar по своим правилам и своим адресатам; здесь решается только, дублировать ли их в MAX. Каждый пользователь может отключить их на своей странице настроек MAX.';
 $s_plugin_MaxBot_calendar_ics_mode = 'Прикладывать файл события (.ics) к уведомлениям';
-$s_plugin_MaxBot_calendar_ics_mode_notice = 'Файл отправляется документом вместе с уведомлением о событии календаря; нажатие на него открывает событие в календаре телефона. Каждый пользователь может изменить выбор на своей странице настроек Telegram.';
+$s_plugin_MaxBot_calendar_ics_mode_notice = 'Файл отправляется документом вместе с уведомлением о событии календаря; нажатие на него открывает событие в календаре телефона. Каждый пользователь может изменить выбор на своей странице настроек MAX.';
 $s_plugin_MaxBot_calendar_ics_mode_off = 'Выключено';
 $s_plugin_MaxBot_calendar_ics_mode_on = 'Включено, пользователь может выключить';
 $s_plugin_MaxBot_calendar_ics_mode_opt_in = 'Выключено, пользователь может включить';
@@ -51,28 +50,15 @@ $s_plugin_MaxBot_calendar_notify_recipients = 'Получатели уведом
 $s_plugin_MaxBot_calendar_notify_target_author = 'Автор события';
 $s_plugin_MaxBot_calendar_notify_target_members = 'Участники события';
 $s_plugin_MaxBot_calendar_notify_target_actor = 'Инициатор действия';
-$s_plugin_MaxBot_bot_name = 'Имя бота (необходимо для авторизации бота при приёме сообщений)';
-$s_plugin_MaxBot_config_bot_username = 'Логин бота:';
-$s_plugin_MaxBot_config_bot_username_notice = 'Он должн заканчиваться на "bot". Например, так: TetrisBot или tetris_bot.';
-$s_plugin_MaxBot_api_key = 'Ключ API (необходимо для авторизации бота при отправке сообщений)';
 $s_plugin_MaxBot_config_api_key = 'API token:';
-$s_plugin_MaxBot_reinstall_webhook = 'Метод получения обновлений: ';
-$s_plugin_MaxBot_reinstall_webhook_notice = 'Webhook требует, чтобы ваш экземпляр MantisBT был доступен из интернета по HTTPS: серверы Telegram сами подключаются к нему. Если опубликовать MantisBT в интернете невозможно, выберите Script — тогда MantisBT сам запрашивает обновления у Telegram, используя только исходящее соединение.';
+$s_plugin_MaxBot_update_method = 'Метод получения обновлений: ';
 $s_plugin_MaxBot_path_to_crontab_script = 'Путь к сценарию обновления:';
 $s_plugin_MaxBot_path_to_crontab_script_notice = 'Добавьте его в ваш crontab.';
-$s_plugin_MaxBot_use_bot_cert_is = 'Использовать самоподписанный сертификат?';
-$s_plugin_MaxBot_cert_help = 'Если выбранно "нет", то необходимо убедиться, что сертификат вашего сервера отдаёт полную цепочку сертификатов и выпущен публичным центром сертификации. Ошибки отображаются на вкладке "Статус".';
-$s_plugin_MaxBot_bot_cert = 'Загружен самоподписанный сертификат:';
-$s_plugin_MaxBot_bot_cert_help = 'Предоставляемый сертификат должен быть закодирован в формате PEM (ASCII BASE64). Файл pem, crt или cer должен содержать только открытый ключ (включая части BEGIN и END).';
 $s_plugin_MaxBot_proxy_address_header = 'Адрес socks5 прокси сервера: socks5://';
 $s_plugin_MaxBot_time_out_server_response_header = 'Таймаут ожидания ответа сервера (по умолчанию 30 сек): ';
-$s_plugin_MaxBot_get_updates_timeout_header = 'Long polling: сколько секунд Telegram держит соединение в ожидании обновлений (по умолчанию 25, должно быть меньше таймаута ответа сервера): ';
-$s_plugin_MaxBot_get_updates_run_time_header = 'Long polling: сколько секунд работает один запуск maxbot_get_updates.php (по умолчанию 55, 0 — один опрос и выход): ';
 $s_plugin_MaxBot_get_updates_last_run = 'Последний запуск скрипта из crontab: ';
 $s_plugin_MaxBot_get_updates_last_run_never = 'Скрипт ещё ни разу не запускался — бот не получит ни одного сообщения, пока скрипт не добавлен в расписание (crontab).';
 $s_plugin_MaxBot_get_updates_last_run_stale = 'Запуск был давно: похоже, скрипт не выполняется по расписанию — проверьте задание в crontab.';
-$s_plugin_MaxBot_current_config = 'Telegram будет отправлять сообщения на следующий URL:';
-$s_plugin_MaxBot_response_from_telegram = 'Ответ сервера Telegram: ';
 $s_plugin_MaxBot_debug_connection_log_path_title = 'Путь к лог файлу';
 $s_plugin_MaxBot_debug_connection_enabled = 'Включить режим отладки подключения?';
 $s_plugin_MaxBot_config_page = 'Общие настройки';
@@ -95,29 +81,30 @@ $s_plugin_MaxBot_registration_button_text = 'Подтвердить привяз
 
 $s_plugin_MaxBot_registration_message_pin_text = 'Для того чтобы начать использовать бот необходимо:
 1. Иметь действующий аккаунт в %1$s.
-2. Открыть страницу привязки Telegram ( %2$s ) и ввести код: %3$s
-Если ссылка не открывается, войдите в %1$s и перейдите: Мой аккаунт -> Привязка Telegram.
+2. Открыть страницу привязки MAX ( %2$s ) и ввести код: %3$s
+Если ссылка не открывается, войдите в %1$s и перейдите: Мой аккаунт -> Привязка MAX.
 Код действителен 15 минут, после этого отправьте боту любое сообщение, чтобы получить новый.';
 
 $s_plugin_MaxBot_registration_message_both_text = 'Для того чтобы начать использовать бот необходимо:
 1. Иметь действующий аккаунт в %1$s.
 2. Привязать Ваш аккаунт нажав на кнопку ниже,
-либо открыть страницу привязки Telegram ( %2$s ) и ввести код: %3$s
-Если ни одна ссылка не открывается, войдите в %1$s и перейдите: Мой аккаунт -> Привязка Telegram.
+либо открыть страницу привязки MAX ( %2$s ) и ввести код: %3$s
+Если ни одна ссылка не открывается, войдите в %1$s и перейдите: Мой аккаунт -> Привязка MAX.
 Код действителен 15 минут, после этого отправьте боту любое сообщение, чтобы получить новый.';
 
 $s_plugin_MaxBot_first_message = '
 Вы успешно подписались на чат-бот
 %1$s
 Если вы хотите отписаться, то просто отправьте 
-комманду /stop и следуйте дальнейшим инструкциям.
+команду /stop и следуйте дальнейшим инструкциям.
 
 В данный момент доступны следующие действия с задачами: 
 - создавать задачи;
 - добавлять комментарии;
 - прикреплять файлы;
 - получать уведомления;
-- отвечать на сообщения через встроенный в Телеграм механизм ответа.
+- отвечать на уведомления через «Ответить» в MAX: ответ станет комментарием.
+Ваши ответы на вопросы бота остаются в чате: MAX разрешает боту удалять только его собственные сообщения.
 
 Настройки уведомлений %2$s
 
@@ -129,14 +116,11 @@ $s_plugin_MaxBot_end_message = '
 
 $s_plugin_MaxBot_help_registration_bot_header = 'Инструкция по настройке бота';
 $s_plugin_MaxBot_help_registration_bot_message = 'Для активации бота необходимо:<br><br>
-1. Найти бота BotFather перейдя по ссылке %1$s или найдя его в мессенджере через поиск; <br>
-2. Отправить сообщение /newbot в чат с BotFather;<br>
-3. Отправить в виде сообщения желаемое краткое наименование бота «Краткое_наименование»;<br>
-4. Отправить в виде сообщения желаемый логин бота «Краткое_наименование_bot» (Обратите внимание, что логин должен оканчиваться на _bot);<br>
-5. После того как BotFather сообщит что бот создан, скопируйте token и логин бота в соответствующие поля ниже;<br>
-6. Задайте способ получения обновлений;<br>
-7. Примените изменения;<br>
-8. Передайте пользователям краткое имя бота "Краткое_наименование" для самостоятельного поиска или ссылку в виде https://t.me/"Краткое_наименование"'; 
+1. Создать бота на платформе «MAX для партнёров» (business.max.ru): это доступно только верифицированным организациям, ИП и самозанятым — резидентам РФ, токен выдаётся после модерации;<br>
+2. Скопировать токен бота в поле ниже, имя бота будет получено от MAX при сохранении настроек;<br>
+3. Задать способ получения обновлений: вебхуку нужен MantisBT, опубликованный по HTTPS на порту 443 с сертификатом доверенного центра, иначе выберите Script;<br>
+4. Применить изменения;<br>
+5. Передать пользователям ссылку на чат с ботом, показанную ниже, или имя бота для поиска в MAX.'; 
 
 $s_plugin_MaxBot_action_select = 'Выберите действие:';
 $s_plugin_MaxBot_bug_section_select = 'Выберите раздел с задачами:';
@@ -148,7 +132,6 @@ $s_plugin_MaxBot_menu_update_bug = 'Изменить задачу';
 $s_plugin_MaxBot_action_label = 'Действие';
 $s_plugin_MaxBot_filter_label = 'Фильтр';
 $s_plugin_MaxBot_default_mark = '(по умолчанию)';
-$s_plugin_MaxBot_comment_add_complete = 'Комментарий добавлен к задаче: ';
 $s_plugin_MaxBot_keyboard_button_list_of_sections = 'К списку разделов';
 $s_plugin_MaxBot_keyboard_button_list_of_projects = 'К списку проектов';
 $s_plugin_MaxBot_keyboard_button_back = 'К списку действий';
@@ -160,14 +143,12 @@ $s_plugin_MaxBot_file_types_disallowed = 'Запрещённые типы фай
 $s_plugin_MaxBot_error_content_type = 'Запрос не поддерживается ботом';
 $s_plugin_MaxBot_error_update_processing = 'Запрос не обработан из-за внутренней ошибки.';
 
-$s_plugin_MaxBot_get_description = 'ВВЕДИТЕ ТЕКСТ ОПИСАНИЯ:';
-$s_plugin_MaxBot_get_summary = 'ВВЕДИТЕ ТЕМУ:';
 $s_plugin_MaxBot_bug_creation_complete = 'Создана %1$s: ';
 
-$s_plugin_MaxBot_history_issue_created = 'Задача создана через Telegram';
-$s_plugin_MaxBot_history_note_added = 'Комментарий добавлен через Telegram';
-$s_plugin_MaxBot_history_file_added = 'Вложение загружено через Telegram';
-$s_plugin_MaxBot_history_event_created = 'Событие создано через Telegram';
+$s_plugin_MaxBot_history_issue_created = 'Задача создана через MAX';
+$s_plugin_MaxBot_history_note_added = 'Комментарий добавлен через MAX';
+$s_plugin_MaxBot_history_file_added = 'Вложение загружено через MAX';
+$s_plugin_MaxBot_history_event_created = 'Событие создано через MAX';
 
 $s_plugin_MaxBot_message_notification_title_for_status_bug_new = 'Следующей задаче присвоено состояние НОВАЯ (повторно):';
 $s_plugin_MaxBot_message_notification_title_for_status_bug_feedback = 'По следующей задаче от вас НУЖНА ОБРАТНАЯ СВЯЗЬ:';
@@ -180,48 +161,10 @@ $s_plugin_MaxBot_message_notification_title_for_action_bug_submitted = 'След
 $s_plugin_MaxBot_message_notification_title_for_action_bug_assigned = 'Следующая задача НАЗНАЧЕНА:';
 $s_plugin_MaxBot_message_notification_title_for_action_bug_unassigned = 'Следующий вопрос был НЕНАЗНАЧЕННЫЙ.';
 $s_plugin_MaxBot_message_notification_title_for_action_bug_reopened = 'Следующая задача ПЕРЕОТКРЫТА:';
-$s_plugin_MaxBot_message_notification_title_for_action_bug_deleted = 'Следующая задача УДАЛЕНА:';
 $s_plugin_MaxBot_message_notification_title_for_action_bug_updated = 'Следующая задача ИЗМЕНЕНА:';
-$s_plugin_MaxBot_message_notification_title_for_action_sponsorship_added = 'Предложена ОПЛАТА следующей задачи:';
-$s_plugin_MaxBot_message_notification_title_for_action_sponsorship_updated = 'Оплата следующей задачи изменена:';
-$s_plugin_MaxBot_message_notification_title_for_action_sponsorship_deleted = 'Оплата следующей задачи отменена:';
 $s_plugin_MaxBot_message_notification_title_for_action_bugnote_submitted = 'КОММЕНТАРИЙ от:';
-$s_plugin_MaxBot_message_notification_title_for_action_duplicate_of_relationship_added = 'Следующая задача помечена как ДУБЛЬ задачи %1$s:';
-$s_plugin_MaxBot_message_notification_title_for_action_has_duplicate_relationship_added = 'Задача %1$s помечена как ДУБЛЬ следующей задачи:';
-$s_plugin_MaxBot_message_notification_title_for_action_related_to_relationship_added = 'Следующая задача помечен как СВЯЗАННАЯ С задачей %1$s:';
-$s_plugin_MaxBot_message_notification_title_for_action_dependant_on_relationship_added = 'Следующая задача помечена как  РОДИТЕЛЬСКАЯ для задачи %1$s:';
-$s_plugin_MaxBot_message_notification_title_for_action_blocks_relationship_added = 'Следующая задача помечена как ДОЧЕРНЯЯ для задачи %1$s:';
-$s_plugin_MaxBot_message_notification_title_for_action_duplicate_of_relationship_deleted = 'Следующая задача больше НЕ ДУБЛИРУЕТ задачу %1$s:';
-$s_plugin_MaxBot_message_notification_title_for_action_has_duplicate_relationship_deleted = 'С задачи %1$s снята пометка ДУБЛЯ следующей задачи:';
-$s_plugin_MaxBot_message_notification_title_for_action_related_to_relationship_deleted = 'Со следующей задачи снята пометка СВЯЗАННОЙ с задачей %1$s:';
-$s_plugin_MaxBot_message_notification_title_for_action_dependant_on_relationship_deleted = 'Со следующей задачи снята пометка РОДИТЕЛЬСКОЙ для задачи %1$s:';
-$s_plugin_MaxBot_message_notification_title_for_action_blocks_relationship_deleted = 'Со следующей задачи снята пометка ДОЧЕРНЕЙ для задачи %1$s:';
 $s_plugin_MaxBot_message_notification_title_for_action_relationship_child_resolved = 'СВЯЗАННАЯ задача %1$s РЕШЕНА:';
 $s_plugin_MaxBot_message_notification_title_for_action_relationship_child_closed = 'СВЯЗАННАЯ задача %1$s ЗАКРЫТА:';
-$s_plugin_MaxBot_message_notification_title_for_action_related_issue_deleted = 'СВЯЗАННАЯ задача %1$s УДАЛЕНА.';
-$s_plugin_MaxBot_message_notification_title_for_action_monitor = 'Задача %1$s отслеживается пользователем %2$s.';
-
-$s_plugin_MaxBot_message_reporter = 'Инициатор';
-$s_plugin_MaxBot_message_handler = 'Ответственный';
-$s_plugin_MaxBot_message_project = 'Проект';
-$s_plugin_MaxBot_message_bug = 'Номер задачи';
-$s_plugin_MaxBot_message_category = 'Категория';
-$s_plugin_MaxBot_message_reproducibility = 'Воспроизводимость';
-$s_plugin_MaxBot_message_severity = 'Влияние';
-$s_plugin_MaxBot_message_priority = 'Приоритет';
-$s_plugin_MaxBot_message_status = 'Состояние';
-$s_plugin_MaxBot_message_resolution = 'Решение';
-$s_plugin_MaxBot_message_duplicate = 'Дублирует';
-$s_plugin_MaxBot_message_fixed_in_version = 'Решена в версии';
-$s_plugin_MaxBot_message_target_version = 'Целевая версия';
-$s_plugin_MaxBot_message_date_submitted = 'Создана';
-$s_plugin_MaxBot_message_last_modified = 'Изменена';
-$s_plugin_MaxBot_message_summary = 'Тема';
-$s_plugin_MaxBot_message_description = 'Описание';
-$s_plugin_MaxBot_message_additional_information = 'Дополнительная информация';
-$s_plugin_MaxBot_message_steps_to_reproduce = 'Шаги по воспроизведению';
-$s_plugin_MaxBot_message_tag = 'Теги';
-$s_plugin_MaxBot_message_due_date = 'Дата';
 
 $s_plugin_MaxBot_message_on_new = 'Уведомлять о создании';
 $s_plugin_MaxBot_message_on_assigned = 'Уведомлять о назначении';
@@ -241,26 +184,18 @@ $s_plugin_MaxBot_message_on_event_deleted = 'Уведомлять об удал�
 $s_plugin_MaxBot_message_on_event_reminder = 'Уведомлять о приближении события календаря';
 $s_plugin_MaxBot_calendar_ics_attach = 'Прикладывать файл события (.ics) к уведомлениям о событиях календаря';
 
-$s_plugin_MaxBot_account_prefs_page_header = 'Настройки мессенджеров';
+$s_plugin_MaxBot_account_prefs_page_header = 'Настройки MAX';
 $s_plugin_MaxBot_default_account_preferences_title = 'Настройки бота';
-$s_plugin_MaxBot_account_prefs_subscribe_bot = 'Для того чтобы подписать на бота найдите его ( %1$s ) в Telegram или перейдите по ссылке: ';
 $s_plugin_MaxBot_account_prefs_pin_code = 'PIN-код';
-$s_plugin_MaxBot_account_register_page_header = 'Привязка мессенджера';
+$s_plugin_MaxBot_account_register_page_header = 'Привязка MAX';
 $s_plugin_MaxBot_account_register_notice = 'Отправьте боту любое сообщение и введите код из его ответа. Код действителен 15 минут.';
 $s_plugin_MaxBot_account_register_button = 'Привязать аккаунт';
-$s_plugin_MaxBot_account_register_already_done = 'Ваш аккаунт уже привязан во всех мессенджерах бота.';
+$s_plugin_MaxBot_account_register_already_done = 'Ваш аккаунт уже привязан к MAX.';
 $s_plugin_MaxBot_registration_link_disabled = 'Привязка по ссылке отключена, теперь бот подтверждает её PIN-кодом.';
 $s_plugin_MaxBot_account_prefs_associated_users_head = 'Подключенные пользователи:';
 $s_plugin_MaxBot_user_info = 'Информация по пользователям';
-$s_plugin_MaxBot_monitor_page_url_not_set = 'Webhook не установлен, используйте crontab.';
-$s_plugin_MaxBot_monitor_page_pending_update_count = 'Количество сообщений, ожидающих доставки на стороне Telegram:';
-$s_plugin_MaxBot_monitor_page_last_error_date = 'Дата последней ошибки, которая произошла при попытке доставить обновление через webhook';
-$s_plugin_MaxBot_monitor_page_last_error_message = 'Сообщение об ошибке для самой последней доставки, которая произошла при попытке доставить обновление через webhook';
-$s_plugin_MaxBot_monitor_page_is_self_signed_cert = 'Используется самоподписанный сертификат';
-$s_plugin_MaxBot_monitor_page_info_receiving_updates_text = 'Данные запрашиваются через API мессенджеров при каждом обновлении страницы.';
-$s_plugin_MaxBot_monitor_page_maxbot_user_id = 'Идентификатор аккаунта';
-$s_plugin_MaxBot_monitor_page_maxbot_username = 'Логин';
-$s_plugin_MaxBot_monitor_page_transport = 'Мессенджер';
+$s_plugin_MaxBot_account_id = 'Идентификатор пользователя MAX';
+$s_plugin_MaxBot_monitor_page_info_receiving_updates_text = 'Данные запрашиваются через Bot API MAX при каждом обновлении страницы.';
 $s_plugin_MaxBot_monitor_page_pin_locks_head = 'Блокировки ввода PIN-кода';
 $s_plugin_MaxBot_monitor_page_pin_locks_none = 'Активных блокировок нет';
 $s_plugin_MaxBot_monitor_page_pin_locks_state = 'Состояние';
@@ -269,15 +204,15 @@ $s_plugin_MaxBot_monitor_page_pin_lock_counting = 'неверных попыто
 $s_plugin_MaxBot_pin_lock_reset_button = 'Снять блокировку';
 $s_plugin_MaxBot_monitor_page_no_associated_users = 'Ни один пользователь ещё не привязал свой аккаунт.';
 $s_plugin_MaxBot_user_unlink_button = 'Отвязать';
-$s_plugin_MaxBot_user_unlink_confirm = 'Отвязать аккаунты мессенджеров у пользователя %1$s? Чтобы продолжить пользоваться ботом, ему придётся привязать их заново.';
-$s_plugin_MaxBot_user_unlink_confirm_self = 'Отвязать ваши аккаунты мессенджеров? Чтобы продолжить пользоваться ботом, потребуется привязать их заново.';
+$s_plugin_MaxBot_user_unlink_confirm = 'Отвязать аккаунт MAX у пользователя %1$s? Чтобы продолжить пользоваться ботом, ему придётся привязать его заново.';
+$s_plugin_MaxBot_user_unlink_confirm_self = 'Отвязать ваш аккаунт MAX? Чтобы продолжить пользоваться ботом, потребуется привязать его заново.';
 $s_plugin_MaxBot_command_not_found = 'Команда не найдена.';
 
 $s_plugin_MaxBot_menu_main_broadcast_message_page = 'Отправить сообщение';
 $s_plugin_MaxBot_broadcast_projects = 'Проекты';
 $s_plugin_MaxBot_broadcast_message = 'Сообщение';
 $s_plugin_MaxBot_broadcast_send_button = 'Отправить';
-$s_plugin_MaxBot_broadcast_sent = 'Сообщение отправлено %1$d из %2$d привязанных пользователей (без привязки к Telegram: %3$d).';
+$s_plugin_MaxBot_broadcast_sent = 'Сообщение отправлено %1$d из %2$d привязанных пользователей (без привязки к MAX: %3$d).';
 $s_plugin_MaxBot_broadcast_header = '📢 Рассылка от %1$s';
 $s_plugin_MaxBot_broadcast_config_page = 'Рассылка';
 $s_plugin_MaxBot_broadcast_enabled_header = 'Включить рассылку сообщений';
@@ -311,15 +246,11 @@ $s_plugin_MaxBot_weekday_Sun = 'Вс';
 $s_plugin_MaxBot_next_month = 'След. месяц';
 $s_plugin_MaxBot_prev_month = 'Пред. месяц';
 
-$s_plugin_MaxBot_BAD_REQUEST = 'ОШИБКА В ТЕЛЕ ЗАПРОСА.';
-$s_plugin_MaxBot_ERROR_CERT_FILE_NOT_FOUND = 'ОТСУТСТВУЕТ ФАЙЛ С СЕРТИФИКАТОМ';
-$s_plugin_MaxBot_ERROR_TG_SESSION_NOT_INITIALIZED = 'ОШИБКА: TELEGRAM СЕССИЯ НЕ ИНИЦИАЛИЗИРОВАНА';
-$s_plugin_MaxBot_ERROR_TG_GET_UPDATE = 'ОШИБКА ПОЛУЧЕНИЯ ОБНОВЛЕНИЙ TELEGRAM - %1$s';
-$s_plugin_MaxBot_ERROR_TG_PIN_CODE_INVALID = 'PIN-КОД НЕВЕРЕН ИЛИ ПРОСРОЧЕН. ОТПРАВЬТЕ БОТУ ЛЮБОЕ СООБЩЕНИЕ, ЧТОБЫ ПОЛУЧИТЬ НОВЫЙ.';
-$s_plugin_MaxBot_ERROR_TG_PIN_CODE_EXPIRED = 'PIN-КОД ПРОСРОЧЕН. БОТ ОТПРАВИЛ В ЧАТ НОВЫЙ КОД, ВВЕДИТЕ ЕГО ЗДЕСЬ.';
-$s_plugin_MaxBot_ERROR_TG_PIN_CODE_ATTEMPTS = 'СЛИШКОМ МНОГО НЕВЕРНЫХ ПОПЫТОК ВВОДА PIN-КОДА, ПОВТОРИТЕ ПОЗЖЕ.';
-$s_plugin_MaxBot_ERROR_TG_PIN_CODE_GENERATE = 'НЕ УДАЛОСЬ СФОРМИРОВАТЬ PIN-КОД, ПОВТОРИТЕ ПОПЫТКУ ПОЗЖЕ';
-$s_plugin_MaxBot_ERROR_TG_USER_ALREADY_ASSOCIATED = 'ЭТОТ АККАУНТ TELEGRAM УЖЕ ПРИВЯЗАН К ДРУГОМУ ПОЛЬЗОВАТЕЛЮ. СНАЧАЛА ОТПРАВЬТЕ КОМАНДУ /stop ИЗ ЭТОГО ЧАТА, ЧТОБЫ СНЯТЬ ПРИВЯЗКУ.';
+$s_plugin_MaxBot_ERROR_PIN_CODE_INVALID = 'PIN-КОД НЕВЕРЕН ИЛИ ПРОСРОЧЕН. ОТПРАВЬТЕ БОТУ ЛЮБОЕ СООБЩЕНИЕ, ЧТОБЫ ПОЛУЧИТЬ НОВЫЙ.';
+$s_plugin_MaxBot_ERROR_PIN_CODE_EXPIRED = 'PIN-КОД ПРОСРОЧЕН. БОТ ОТПРАВИЛ В ЧАТ НОВЫЙ КОД, ВВЕДИТЕ ЕГО ЗДЕСЬ.';
+$s_plugin_MaxBot_ERROR_PIN_CODE_ATTEMPTS = 'СЛИШКОМ МНОГО НЕВЕРНЫХ ПОПЫТОК ВВОДА PIN-КОДА, ПОВТОРИТЕ ПОЗЖЕ.';
+$s_plugin_MaxBot_ERROR_PIN_CODE_GENERATE = 'НЕ УДАЛОСЬ СФОРМИРОВАТЬ PIN-КОД, ПОВТОРИТЕ ПОПЫТКУ ПОЗЖЕ';
+$s_plugin_MaxBot_ERROR_USER_ALREADY_ASSOCIATED = 'ЭТОТ АККАУНТ MAX УЖЕ ПРИВЯЗАН К ДРУГОМУ ПОЛЬЗОВАТЕЛЮ. СНАЧАЛА ОТПРАВЬТЕ КОМАНДУ /stop ИЗ ЭТОГО ЧАТА, ЧТОБЫ СНЯТЬ ПРИВЯЗКУ.';
 
 $s_plugin_MaxBot_skip_button = 'Пропустить';
 $s_plugin_MaxBot_back_button = 'Назад';
@@ -428,27 +359,18 @@ $s_plugin_MaxBot_event_draft_busy_status = 'Сейчас идёт смена с�
 $s_plugin_MaxBot_event_draft_busy_event = 'Сейчас создаётся черновик события. Завершите или отмените его, прежде чем создавать задачу.';
 
 $s_plugin_MaxBot_user_info_header = 'Ваша учётная запись MantisBT:';
-$s_plugin_MaxBot_dialog_other_transport = 'Сейчас идёт диалог в %s. Сначала завершите или отмените его там.';
 
-# MAX settings UI
-$s_plugin_MaxBot_user_relationship_question_messenger = 'Связать ваш аккаунт %1$s с ботом?';
-$s_plugin_MaxBot_subscribe_bot = '%1$s: откройте чат с ботом %2$s';
+$s_plugin_MaxBot_subscribe_bot = 'Откройте чат с ботом в MAX: %1$s';
 $s_plugin_MaxBot_subscribe_notice = 'Отправьте боту любое сообщение: в ответ он пришлёт ссылку или PIN-код для привязки аккаунта.';
-$s_plugin_MaxBot_user_unlink_confirm_messenger = 'Отвязать аккаунт %2$s у пользователя %1$s? Чтобы продолжить пользоваться ботом в %2$s, ему придётся привязать аккаунт заново.';
-$s_plugin_MaxBot_user_unlink_confirm_self_messenger = 'Отвязать ваш аккаунт %1$s? Чтобы продолжить пользоваться ботом в %1$s, потребуется привязать его заново.';
-$s_plugin_MaxBot_max_config_title = 'Мессенджер MAX';
-$s_plugin_MaxBot_max_enabled = 'Работа в MAX:';
-$s_plugin_MaxBot_max_enabled_notice = 'Бот отвечает в MAX наряду с Telegram; настройки MAX появятся после сохранения переключателя. Создать бота MAX могут только верифицированные организации, ИП и самозанятые — резиденты РФ, токен выдаётся после модерации.';
-$s_plugin_MaxBot_max_api_key = 'Токен бота:';
-$s_plugin_MaxBot_max_api_key_notice = 'Платформа «MAX для партнёров» (business.max.ru): Чат-боты &rarr; &#8942; &rarr; Настройки.';
-$s_plugin_MaxBot_max_bot_name = 'Имя бота:';
-$s_plugin_MaxBot_max_bot_name_notice = 'Берётся из MAX при сохранении токена, из него строится ссылка на чат с ботом.';
-$s_plugin_MaxBot_max_update_method_notice = 'Webhook: серверы MAX сами подключаются к MantisBT. Script: MantisBT сам запрашивает обновления, используя только исходящее соединение; для этого способа MAX ограничивает скорость и срок хранения обновлений.';
+$s_plugin_MaxBot_config_api_key_notice = 'Платформа «MAX для партнёров» (business.max.ru): Чат-боты &rarr; &#8942; &rarr; Настройки.';
+$s_plugin_MaxBot_config_bot_name = 'Имя бота:';
+$s_plugin_MaxBot_config_bot_name_notice = 'Берётся из MAX при сохранении токена, из него строится ссылка на чат с ботом.';
+$s_plugin_MaxBot_update_method_notice = 'Webhook: серверы MAX сами подключаются к MantisBT. Script: MantisBT сам запрашивает обновления, используя только исходящее соединение; для этого способа MAX ограничивает скорость и срок хранения обновлений.';
 $s_plugin_MaxBot_webhook_url = 'MAX будет отправлять обновления на адрес:';
 $s_plugin_MaxBot_webhook_requirements = 'MAX принимает только HTTPS на порту 443 с сертификатом доверенного центра (или Минцифры) и полной цепочкой; самоподписанные сертификаты, HTTP и другие порты не поддерживаются. MantisBT должен ответить за 30 секунд, после 8 часов неудачных доставок MAX снимает подписку.';
 $s_plugin_MaxBot_webhook_url_invalid = 'Адрес — не HTTPS на стандартном порту, MAX его отклонит: укажите в $g_path (config_inc.php) публичный адрес MantisBT с https:// или выберите Script.';
-$s_plugin_MaxBot_max_get_updates_timeout_header = 'Long polling: сколько секунд MAX держит соединение в ожидании обновлений (по умолчанию 30, не больше 90, должно быть меньше таймаута ответа сервера):';
-$s_plugin_MaxBot_max_get_updates_run_time_header = 'Long polling: сколько секунд работает один запуск max_get_updates.php (по умолчанию 55, 0 &mdash; один опрос и выход):';
+$s_plugin_MaxBot_get_updates_timeout_header = 'Long polling: сколько секунд MAX держит соединение в ожидании обновлений (по умолчанию 30, не больше 90, должно быть меньше таймаута ответа сервера):';
+$s_plugin_MaxBot_get_updates_run_time_header = 'Long polling: сколько секунд работает один запуск get_updates.php (по умолчанию 55, 0 &mdash; один опрос и выход):';
 $s_plugin_MaxBot_subscription = 'Подписка webhook:';
 $s_plugin_MaxBot_subscription_time = 'Время подписки:';
 $s_plugin_MaxBot_subscription_none = 'Нет, обновления забирает скрипт.';
@@ -456,7 +378,6 @@ $s_plugin_MaxBot_subscription_missing = 'Нет: бот ничего не пол
 $s_plugin_MaxBot_subscription_unknown = 'Не удалось запросить MAX, см. лог плагина.';
 $s_plugin_MaxBot_subscription_blocks_polling = 'Пока подписка есть, MAX ничего не отдаёт скрипту. Сохраните настройки, чтобы снять её.';
 $s_plugin_MaxBot_monitor_not_configured = 'Токен бота не задан.';
-$s_plugin_MaxBot_max_transport_missing = 'Транспорт MAX недоступен в этой версии плагина.';
 $s_plugin_MaxBot_api_key_missing = 'Укажите токен бота, чтобы подключить MAX.';
 $s_plugin_MaxBot_bot_name_failed = 'MAX не вернул имя бота: проверьте токен.';
 $s_plugin_MaxBot_webhook_set = 'MAX: webhook установлен.';
@@ -464,9 +385,4 @@ $s_plugin_MaxBot_webhook_deleted = 'MAX: webhook снят.';
 $s_plugin_MaxBot_request_failed = 'запрос не выполнен, см. лог плагина.';
 $s_plugin_MaxBot_api_response = 'Ответ сервера MAX: ';
 
-# MAX transport
-$s_plugin_MaxBot_history_messenger_issue_created = 'Задача создана через мессенджер';
-$s_plugin_MaxBot_history_messenger_note_added = 'Комментарий добавлен через мессенджер';
-$s_plugin_MaxBot_history_messenger_file_added = 'Вложение загружено через мессенджер';
-$s_plugin_MaxBot_history_messenger_event_created = 'Событие создано через мессенджер';
 $s_plugin_MaxBot_file_download_failed = 'Не удалось скачать файл из MAX, отправьте его ещё раз.';
