@@ -130,8 +130,8 @@ class MaxBotApi {
 
                 # The buttons go with every part of a long text
                 do {
-                        $t_part = mb_substr( $t_text, 0, self::TEXT_LENGTH_MAX );
-                        $t_text = mb_substr( $t_text, self::TEXT_LENGTH_MAX );
+                        $t_part = $this->text_head( $t_text, $p_message );
+                        $t_text = mb_substr( $t_text, mb_strlen( $t_part, 'UTF-8' ) );
 
                         $t_body['text'] = $t_part === '' ? NULL : $t_part;
 
@@ -143,6 +143,40 @@ class MaxBotApi {
                 } while( mb_strlen( $t_text, 'UTF-8' ) > 0 );
 
                 return $t_ids;
+        }
+
+        /**
+         * The longest head of a text that fits in a message of MAX.
+         *
+         * MAX counts the limit on the source of an HTML text, tags included, and
+         * shows a tag or an entity cut in half as it is, a tag left open spreads
+         * over the rest of the text. The cut of an HTML text therefore drops the
+         * entity or the tag it falls in and a bold label left open, the only tag
+         * the cards use.
+         *
+         * @param string $p_text    Text to cut.
+         * @param array  $p_message The message the text belongs to.
+         * @return string
+         */
+        private function text_head( $p_text, array $p_message ) {
+                $t_head = mb_substr( $p_text, 0, self::TEXT_LENGTH_MAX );
+
+                if( !isset( $p_message['format'] ) || $p_message['format'] != 'html' || $t_head === $p_text ) {
+                        return $t_head;
+                }
+
+                # a bare ampersand is always escaped, so a trailing one starts a cut entity
+                $t_cut = preg_replace( '/(&[^;\s]*|<[^>]*)$/u', '', $t_head );
+
+                $t_open  = mb_strrpos( $t_cut, '<b>', 0, 'UTF-8' );
+                $t_close = mb_strrpos( $t_cut, '</b>', 0, 'UTF-8' );
+
+                if( $t_open !== FALSE && ( $t_close === FALSE || $t_close < $t_open ) ) {
+                        $t_cut = mb_substr( $t_cut, 0, $t_open );
+                }
+
+                # an empty head would never let a split text end
+                return $t_cut === '' ? $t_head : $t_cut;
         }
 
         /**
@@ -172,7 +206,7 @@ class MaxBotApi {
 
                 if( $t_has_text ) {
                         # an edit cannot be split, the rest of a longer text is cut off
-                        $t_body['text'] = mb_substr( (string)$p_message['text'], 0, self::TEXT_LENGTH_MAX );
+                        $t_body['text'] = $this->text_head( (string)$p_message['text'], $p_message );
 
                         if( isset( $p_message['format'] ) ) {
                                 $t_body['format'] = (string)$p_message['format'];
