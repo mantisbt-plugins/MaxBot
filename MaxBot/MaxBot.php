@@ -53,7 +53,7 @@ class MaxBotPlugin extends MantisPlugin {
         $this->name        = 'MaxBot';
         $this->description = plugin_lang_get( 'description' );
 
-        $this->version  = '1.0.0-dev';
+        $this->version  = '1.0.0';
         $this->requires = array(
                                   'MantisCore' => '2.26.0',
         );
