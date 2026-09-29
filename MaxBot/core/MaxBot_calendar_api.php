@@ -23,6 +23,10 @@
  * one, so every entry point is guarded by maxbot_calendar_available().
  */
 
+# Oldest release of the Calendar plugin whose public api covers everything used
+# here: the members, the replies to the invitations, the reminders and the .ics
+define( 'MAXBOT_CALENDAR_VERSION_MIN', '3.0.0' );
+
 # A question of the event wizard is asked, the keyboard of the result belongs to it
 define( 'MAXBOT_EVENT_NEXT_QUESTION', 'question' );
 # Every question is answered, the user is offered to create the event
@@ -72,12 +76,27 @@ define( 'MAXBOT_EVENT_REPLY_REMINDERS_OFF', 'o' );
 define( 'MAXBOT_EVENT_REPLY_REMINDER', 'a' );
 
 /**
+ * Whether the Calendar plugin is installed in a release the integration works with.
+ *
+ * The version is known as soon as the plugins are registered, so, unlike the
+ * classes of Calendar, it may be asked before Calendar is initialized. An older
+ * Calendar lacks a part of the public api used here and is treated as absent.
+ *
+ * @return boolean
+ */
+function maxbot_calendar_supported() {
+
+    return plugin_is_registered( 'Calendar' )
+            && version_compare( plugin_get( 'Calendar' )->version, MAXBOT_CALENDAR_VERSION_MIN, '>=' );
+}
+
+/**
  * Whether the Calendar plugin is installed and initialized, and the
  * integration with it is switched on by the administrator.
  *
  * The public api of Calendar names its request class as the documented way of
- * detecting the plugin; the function is checked as well, so that a Calendar
- * older than its public api is treated as absent. The switch is the master
+ * detecting an initialized plugin, its release is checked by
+ * maxbot_calendar_supported(). The switch is the master
  * one of the whole integration - the event wizard, the notifications, the
  * reminders, the personal settings - and every entry point is guarded by this
  * function, so nothing of the integration needs to know about the switch.
@@ -86,8 +105,8 @@ define( 'MAXBOT_EVENT_REPLY_REMINDER', 'a' );
  */
 function maxbot_calendar_available() {
 
-    return class_exists( 'CalendarPluginApi\\EventCreateRequest' )
-            && function_exists( 'calendar_api_event_create' )
+    return maxbot_calendar_supported()
+            && class_exists( 'CalendarPluginApi\\EventCreateRequest' )
             && ON == (int)plugin_config_get( 'calendar_integration_enabled' );
 }
 
@@ -534,7 +553,7 @@ function maxbot_event_candidate_members( $p_project_id ) {
 function maxbot_event_candidate_issues( $p_project_id, $p_page = 1 ) {
     static $s_candidates = array();
 
-    if( !maxbot_calendar_available() || !function_exists( 'calendar_api_candidate_issues' ) ) {
+    if( !maxbot_calendar_available() ) {
         return array();
     }
 
@@ -1039,16 +1058,13 @@ function maxbot_event_draft_submit( array $p_draft ) {
 
     plugin_log_event( sprintf( 'Calendar event #%d created from the chat', $t_event_id ) );
 
-    # mark the origin in the history of the event; the guard keeps the older
-    # Calendar versions working, which lack the plugin history facade. The
-    # event is already created, so a failure here must not fail the card.
-    if( function_exists( 'calendar_api_event_history_log' ) ) {
-        try {
-            # the value is the messenger: the label of the entry takes no parameters
-            calendar_api_event_history_log( $t_event_id, 'history_event_created', 'MAX' );
-        } catch( Mantis\Exceptions\MantisException $t_error ) {
-            plugin_log_event( sprintf( 'History of event #%d not written: %s', $t_event_id, $t_error->getMessage() ) );
-        }
+    # mark the origin in the history of the event; the event is already
+    # created, so a failure here must not fail the card
+    try {
+        # the value is the messenger: the label of the entry takes no parameters
+        calendar_api_event_history_log( $t_event_id, 'history_event_created', 'MAX' );
+    } catch( Mantis\Exceptions\MantisException $t_error ) {
+        plugin_log_event( sprintf( 'History of event #%d not written: %s', $t_event_id, $t_error->getMessage() ) );
     }
 
     # the base name is passed explicitly: plugin_page() of the current plugin
@@ -2747,8 +2763,8 @@ function maxbot_calendar_event_message_compose( array $p_event_row, $p_header, $
     $t_message .= $t_separator2;
     $t_message .= maxbot_message_format_line( plugin_lang_get( 'event_name' ), $p_event_row['name'] );
 
-    # the column is missing in the older Calendar versions and empty in most
-    # events, the block is shown only when there is something to show
+    # the description is empty in most events, the block is shown only when
+    # there is something to show
     if( !empty( $p_event_row['description'] ) ) {
         $t_message .= $t_separator2;
         $t_message .= plugin_lang_get( 'event_description' ) . ':' . PHP_EOL . $p_event_row['description'] . PHP_EOL;
