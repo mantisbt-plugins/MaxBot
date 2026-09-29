@@ -15,6 +15,9 @@
 # along with MaxBot plugin for MantisBT.  
 # If not, see <http://www.gnu.org/licenses/>.
 
+# Users a page of a user list carries, see maxbot_keyboard_users_get()
+define( 'MAXBOT_USERS_PER_PAGE', 10 );
+
 function maxbot_bot_keyboard_rows_default_filter( $p_action_tag = MaxBotActions::ADD_COMMENT_TAG ) {
 
     $t_keyboard_rows   = array();
@@ -549,83 +552,162 @@ function maxbot_keyboard_version_option_list( $p_version, $p_project_ids, $p_rel
         return $t_inline_keyboard;
 }
 
-function maxbot_keyboard_handler_get( $p_project_id, $p_action_tag = MaxBotActions::REPORT_BUG_TAG, $p_action = MaxBotActions::SET_HANDLER ) {
-    $t_inline_keyboard = new MaxBotKeyboard();
+/**
+ * The users of a project holding the given access level, in the order and under
+ * the names the user lists of the core show them: print_user_option_list() of
+ * print_api.php, which print_assign_to_option_list() of the report page and of
+ * the update page call with handle_bug_threshold.
+ *
+ * @param integer $p_project_id Project identifier, ALL_PROJECTS for every project accessible to the current user.
+ * @param integer $p_threshold  Access level the users have to hold in the project.
+ * @return array Ordered array( user id => name to show ).
+ */
+function maxbot_project_users_get( $p_project_id, $p_threshold ) {
 
-    $p_user_id      = 0;
-    $t_current_user = auth_get_current_user_id();
-
-    if( null === $p_project_id ) {
-        $p_project_id = helper_get_current_project();
-    }
-
-    # The threshold of the project the issue belongs to, the one bug_update.php
-    # checks the new handler against
-    $p_access = config_get( 'handle_bug_threshold', null, null, (int)$p_project_id );
-
-    if( $p_project_id === ALL_PROJECTS ) {
-        $t_projects = user_get_accessible_projects( $t_current_user );
-
+    if( (int)$p_project_id == ALL_PROJECTS ) {
         # Get list of users having access level for all accessible projects
         $t_users = array();
-        foreach( $t_projects as $t_project_id ) {
-            $t_project_users_list = project_get_all_user_rows( $t_project_id, $p_access );
+        foreach( user_get_accessible_projects( auth_get_current_user_id() ) as $t_project_id ) {
             # Do a 'smart' merge of the project's user list, into an
             # associative array (to remove duplicates)
-            foreach( $t_project_users_list as $t_id => $t_user ) {
+            foreach( project_get_all_user_rows( $t_project_id, $p_threshold ) as $t_id => $t_user ) {
                 $t_users[$t_id] = $t_user;
             }
-            # Clear the array to release memory
-            unset( $t_project_users_list );
         }
-        unset( $t_projects );
     } else {
-        $t_users = project_get_all_user_rows( $p_project_id, $p_access );
-    }
-
-    # Add the specified user ID to the list
-    # If we have an array of user IDs, then we've been called from a filter
-    # so don't add anything
-    if( !is_array( $p_user_id ) &&
-            $p_user_id != NO_USER &&
-            !array_key_exists( $p_user_id, $t_users )
-    ) {
-        $t_row = user_cache_row( $p_user_id, /* trigger_error */ false );
-        if( $t_row === false ) {
-            # User doesn't exist - create a dummy record for display purposes
-            $t_name = user_get_name( $p_user_id );
-            $t_row  = array(
-                                      'id'       => $p_user_id,
-                                      'username' => $t_name,
-                                      'realname' => $t_name,
-            );
-        }
-        $t_users[$p_user_id] = $t_row;
+        $t_users = project_get_all_user_rows( (int)$p_project_id, $p_threshold );
     }
 
     $t_display = array();
     $t_sort    = array();
 
-    foreach( $t_users as $t_key => $t_user ) {
+    foreach( $t_users as $t_user ) {
         $t_display[] = user_get_expanded_name_from_row( $t_user );
         $t_sort[]    = user_get_name_for_sorting_from_row( $t_user );
     }
 
     array_multisort( $t_sort, SORT_ASC, SORT_STRING, $t_users, $t_display );
-    unset( $t_sort );
 
-    $t_count = count( $t_users );
-    for( $i = 0; $i < $t_count; $i++ ) {
-        $t_row = $t_users[$i];
+    $t_result = array();
+    foreach( $t_users as $i => $t_user ) {
+        $t_result[(int)$t_user['id']] = $t_display[$i];
+    }
+
+    return $t_result;
+}
+
+/**
+ * Build a page of a list of users, MAXBOT_USERS_PER_PAGE users a page.
+ *
+ * A list of users outgrows the limits MAX puts on an inline keyboard quickly,
+ * so it is always shown page by page. A button of a user carries the page it sits
+ * on: the answer is checked against the keyboard of that very page, see
+ * maxbot_keyboard_offers(). A page out of the list shows the last one.
+ *
+ * @param array   $p_users      Ordered array( user id => label ), see maxbot_project_users_get().
+ * @param integer $p_page       Page of the list.
+ * @param string  $p_tag        Root MaxBotActions tag of the flow.
+ * @param string  $p_set_action Action of a user button, the payload is array( 'id' => user id, 'p' => page ).
+ * @param string  $p_get_action Action of the page buttons, the payload is array( 'p' => page ).
+ * @param array|null $p_selected Users ticked off so far for a list picking several users,
+ *                               null for a list picking one.
+ * @return MaxBotKeyboard
+ */
+function maxbot_keyboard_users_get( array $p_users, $p_page, $p_tag, $p_set_action, $p_get_action, $p_selected = NULL ) {
+
+    $t_inline_keyboard = new MaxBotKeyboard();
+
+    $t_user_ids = array_keys( $p_users );
+    $t_count    = count( $t_user_ids );
+    $t_page     = max( 1, min( (int)$p_page, (int)ceil( $t_count / MAXBOT_USERS_PER_PAGE ) ) );
+
+    for( $i = ( $t_page - 1 ) * MAXBOT_USERS_PER_PAGE; $i < $t_page * MAXBOT_USERS_PER_PAGE && $i < $t_count; $i++ ) {
+
+        $t_user_id = (int)$t_user_ids[$i];
+        $t_mark    = '';
+
+        if( is_array( $p_selected ) ) {
+            $t_mark = in_array( $t_user_id, $p_selected ) ? '☑ ' : '☐ ';
+        }
 
         $t_inline_keyboard->addRow( [
-                                  'text'          => $t_display[$i],
-                                  'callback_data' => json_encode( array(
-                                                            $p_action_tag => array( $p_action => array( 'id' => $t_row['id'] ) )
+                                  'text'          => $t_mark . $p_users[$t_user_id],
+                                  'callback_data' => json_encode( array( $p_tag => array( $p_set_action => array(
+                                                                                                                'id' => $t_user_id,
+                                                                                                                'p'  => $t_page
+                                                                                      ) )
                                   ) )
         ] );
     }
-    
+
+    if( $t_page > 1 ) {
+        $t_inline_keyboard->addRow( [
+                                  'text'          => '<<',
+                                  'callback_data' => json_encode( array( $p_tag => array( $p_get_action => array( 'p' => $t_page - 1 ) ) ) )
+        ] );
+    }
+
+    if( $t_count > $t_page * MAXBOT_USERS_PER_PAGE ) {
+        $t_inline_keyboard->addRow( [
+                                  'text'          => '>>',
+                                  'callback_data' => json_encode( array( $p_tag => array( $p_get_action => array( 'p' => $t_page + 1 ) ) ) )
+        ] );
+    }
+
+    return $t_inline_keyboard;
+}
+
+/**
+ * Build a page of the list of the users an issue of the project can be assigned to,
+ * the list the handler field of the report and the update pages of the core offer.
+ *
+ * @param integer $p_project_id Project of the issue.
+ * @param integer $p_page       Page of the list.
+ * @param string  $p_action_tag Root MaxBotActions tag of the flow.
+ * @param string  $p_set_action Action picking a user.
+ * @param string  $p_get_action Action leafing through the list.
+ * @return MaxBotKeyboard
+ */
+function maxbot_keyboard_handler_get( $p_project_id, $p_page = 1, $p_action_tag = MaxBotActions::REPORT_BUG_TAG, $p_set_action = MaxBotActions::SET_HANDLER, $p_get_action = MaxBotActions::GET_HANDLER ) {
+
+    # The threshold of the project the issue belongs to, the one bug_update.php
+    # checks the new handler against
+    $t_threshold = config_get( 'handle_bug_threshold', null, null, (int)$p_project_id );
+
+    return maxbot_keyboard_users_get( maxbot_project_users_get( $p_project_id, $t_threshold ), $p_page, $p_action_tag, $p_set_action, $p_get_action );
+}
+
+/**
+ * Build a page of the list of the users who may monitor an issue of the project,
+ * the list the monitors field of the report page of the core offers: every button
+ * ticks a user off or back, the list is closed with a button of its own.
+ *
+ * @param integer $p_project_id Project of the issue.
+ * @param array   $p_selected   Users ticked off so far.
+ * @param integer $p_page       Page of the list.
+ * @return MaxBotKeyboard
+ */
+function maxbot_keyboard_monitors_get( $p_project_id, array $p_selected, $p_page = 1 ) {
+
+    # bug_report_page.php lists the users holding monitor_bug_threshold
+    $t_threshold = config_get( 'monitor_bug_threshold', null, null, (int)$p_project_id );
+
+    $t_inline_keyboard = maxbot_keyboard_users_get(
+                              maxbot_project_users_get( $p_project_id, $t_threshold ),
+                              $p_page,
+                              MaxBotActions::REPORT_BUG_TAG,
+                              MaxBotActions::TOGGLE_MONITOR,
+                              MaxBotActions::GET_MONITOR,
+                              $p_selected
+            );
+
+    $t_inline_keyboard->addRow( [
+                              'text'          => '(' . plugin_lang_get( 'custom_field_done_button' ) . ')',
+                              'callback_data' => json_encode( array(
+                                                        MaxBotActions::REPORT_BUG_TAG => array( MaxBotActions::END_MONITOR => 1 )
+                              ) )
+    ] );
+
     return $t_inline_keyboard;
 }
 
@@ -1057,53 +1139,27 @@ function maxbot_keyboard_event_issues_get( array $p_candidates, array $p_selecte
  *
  * @param array   $p_candidates Users which may be signed up, as calendar_api_candidate_members() returns them.
  * @param array   $p_selected   Users ticked off so far.
- * @param integer $p_page       Page of the list, ten members per page.
+ * @param integer $p_page       Page of the list, see maxbot_keyboard_users_get().
  * @return MaxBotKeyboard
  */
 function maxbot_keyboard_event_members_get( array $p_candidates, array $p_selected, $p_page = 1 ) {
 
-        $t_inline_keyboard = new MaxBotKeyboard();
-
-        $t_page  = $p_page < 1 ? 1 : (int)$p_page;
-        $t_count = count( $p_candidates );
-
         user_cache_array_rows( $p_candidates );
 
-        for( $i = ( $t_page * MAXBOT_EVENT_MEMBERS_PER_PAGE ) - MAXBOT_EVENT_MEMBERS_PER_PAGE;
-                        $i < ( $t_page * MAXBOT_EVENT_MEMBERS_PER_PAGE ) && $i < $t_count; $i++ ) {
-
-                $t_member_id = (int)$p_candidates[$i];
-                $t_mark      = in_array( $t_member_id, $p_selected ) ? '☑ ' : '☐ ';
-
-                $t_inline_keyboard->addRow( [
-                                      'text'          => $t_mark . user_get_name( $t_member_id ),
-                                      'callback_data' => json_encode( array( MaxBotActions::CREATE_EVENT_TAG => array( MaxBotActions::TOGGLE_EVENT_MEMBER => array(
-                                                                                                                    'id' => $t_member_id,
-                                                                                                                    'p'  => $t_page
-                                                                                          ) )
-                                      ) )
-                ] );
+        # The candidates come in the order of Calendar, named the way the card names them
+        $t_users = array();
+        foreach( $p_candidates as $t_member_id ) {
+                $t_users[(int)$t_member_id] = user_get_name( (int)$t_member_id );
         }
 
-        if( $t_page > 1 ) {
-                $t_inline_keyboard->addRow( [
-                                      'text'          => '<<',
-                                      'callback_data' => json_encode( array( MaxBotActions::CREATE_EVENT_TAG => array( MaxBotActions::GET_EVENT_MEMBER => array(
-                                                                                                                    'p' => $t_page - 1
-                                                                                          ) )
-                                      ) )
-                ] );
-        }
-
-        if( ( $t_count / MAXBOT_EVENT_MEMBERS_PER_PAGE ) > $t_page ) {
-                $t_inline_keyboard->addRow( [
-                                      'text'          => '>>',
-                                      'callback_data' => json_encode( array( MaxBotActions::CREATE_EVENT_TAG => array( MaxBotActions::GET_EVENT_MEMBER => array(
-                                                                                                                    'p' => $t_page + 1
-                                                                                          ) )
-                                      ) )
-                ] );
-        }
+        $t_inline_keyboard = maxbot_keyboard_users_get(
+                                  $t_users,
+                                  $p_page,
+                                  MaxBotActions::CREATE_EVENT_TAG,
+                                  MaxBotActions::TOGGLE_EVENT_MEMBER,
+                                  MaxBotActions::GET_EVENT_MEMBER,
+                                  $p_selected
+                );
 
         $t_inline_keyboard->addRow( [
                               'text'          => '(' . plugin_lang_get( 'custom_field_done_button' ) . ')',

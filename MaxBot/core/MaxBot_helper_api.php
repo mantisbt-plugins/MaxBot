@@ -19,6 +19,10 @@
 # it is dropped along with the draft itself
 define( 'MAXBOT_DRAFT_OPTIONAL_PHASE', 'optional_phase' );
 
+# Key of the issue draft holding the users ticked off in the monitor list until the
+# list is closed, it is dropped along with the draft itself
+define( 'MAXBOT_DRAFT_MONITORS_SELECTED', 'monitors_selected' );
+
 # A question of the wizard is asked, the keyboard of the result belongs to it
 define( 'MAXBOT_DRAFT_NEXT_QUESTION', 'question' );
 # Every mandatory question is answered, the user chooses whether to create the issue
@@ -645,6 +649,7 @@ function maxbot_draft_steps_get( array $p_bug_data_draft ) {
                               'profile',
                               'product_version',
                               'handler',
+                              'monitors',
                               'status',
                               'resolution',
                               'target_version',
@@ -792,6 +797,12 @@ function maxbot_draft_step_is_applicable( $p_step, array $p_bug_data_draft ) {
         case 'handler':
             return array_key_exists( 'handler', $p_bug_data_draft )
                     && access_has_project_level( config_get( 'update_bug_assign_threshold', null, null, $t_project_id ), $t_project_id, $t_user_id );
+
+        case 'monitors':
+            # 'monitors' is not an actual field, bug_report_page.php shows the list
+            # to the users allowed to add others to the monitors of an issue
+            return array_key_exists( 'monitors', $p_bug_data_draft )
+                    && access_has_project_level( config_get( 'monitor_add_others_bug_threshold', null, null, $t_project_id ), $t_project_id, $t_user_id );
     }
 
     return array_key_exists( $p_step, $p_bug_data_draft );
@@ -943,10 +954,33 @@ function maxbot_draft_step_value_reset( $p_step, array &$p_bug_data_draft ) {
             unset( $p_bug_data_draft[$p_step] );
             break;
 
+        case 'monitors':
+            # The users ticked off so far are a part of the answer being dropped
+            unset( $p_bug_data_draft[MAXBOT_DRAFT_MONITORS_SELECTED] );
+            $p_bug_data_draft[$p_step] = '';
+            break;
+
         default:
             $p_bug_data_draft[$p_step] = '';
             break;
     }
+}
+
+/**
+ * The users currently ticked in the monitor list of the issue draft wizard, kept
+ * apart from the answer until the list is closed.
+ *
+ * @param array $p_bug_data_draft Issue draft.
+ * @return array List of user identifiers.
+ */
+function maxbot_draft_monitors_selected( array $p_bug_data_draft ) {
+
+    if( array_key_exists( MAXBOT_DRAFT_MONITORS_SELECTED, $p_bug_data_draft )
+            && is_array( $p_bug_data_draft[MAXBOT_DRAFT_MONITORS_SELECTED] ) ) {
+        return $p_bug_data_draft[MAXBOT_DRAFT_MONITORS_SELECTED];
+    }
+
+    return array();
 }
 
 /**
@@ -1019,6 +1053,9 @@ function maxbot_draft_step_label( $p_step ) {
         case 'handler':
             return lang_get( 'issue_handler' );
 
+        case 'monitors':
+            return lang_get( 'monitored_by' );
+
         case 'additional_info':
             return lang_get( 'additional_information' );
     }
@@ -1083,6 +1120,15 @@ function maxbot_draft_step_display( $p_step, array $p_bug_data_draft ) {
 
         case 'handler':
             return user_get_name( $t_value );
+
+        case 'monitors':
+            $t_names = array();
+
+            foreach( (array)$t_value as $t_monitor_id ) {
+                $t_names[] = user_get_name( (int)$t_monitor_id );
+            }
+
+            return implode( ', ', $t_names );
     }
 
     return (string)$t_value;
@@ -1267,13 +1313,14 @@ function maxbot_draft_step_ask( $p_step, array &$p_bug_data_draft, &$p_suffix, $
  * @param string $p_action         Action of the button, MaxBotActions::SET_*.
  * @param mixed  $p_payload        Payload of the action.
  * @param array  $p_bug_data_draft Issue draft.
+ * @param int    $p_page           Page of a paginated list the button sits on.
  * @return boolean
  */
-function maxbot_draft_answer_check( $p_step, $p_action, $p_payload, array $p_bug_data_draft ) {
+function maxbot_draft_answer_check( $p_step, $p_action, $p_payload, array $p_bug_data_draft, $p_page = 1 ) {
 
     if( maxbot_draft_step_is_applicable( $p_step, $p_bug_data_draft )
             && maxbot_keyboard_offers(
-                              maxbot_draft_step_keyboard_get( $p_step, $p_bug_data_draft ),
+                              maxbot_draft_step_keyboard_get( $p_step, $p_bug_data_draft, $p_page ),
                               array( MaxBotActions::REPORT_BUG_TAG => array( $p_action => $p_payload ) )
             ) ) {
         return TRUE;
@@ -1288,11 +1335,12 @@ function maxbot_draft_answer_check( $p_step, $p_action, $p_payload, array $p_bug
  * Build the keyboard of a question of the issue draft wizard, the custom fields
  * excluded: the answers the wizard offers are exactly the buttons of it.
  *
- * @param string $p_step           Step of the wizard.
- * @param array  $p_bug_data_draft Issue draft.
+ * @param string  $p_step           Step of the wizard.
+ * @param array   $p_bug_data_draft Issue draft.
+ * @param integer $p_page           Page of a paginated list ( the handlers, the monitors ).
  * @return MaxBotKeyboard
  */
-function maxbot_draft_step_keyboard_get( $p_step, array $p_bug_data_draft ) {
+function maxbot_draft_step_keyboard_get( $p_step, array $p_bug_data_draft, $p_page = 1 ) {
 
     $t_user_id         = auth_get_current_user_id();
     $t_project_id      = array_key_exists( 'project', $p_bug_data_draft ) ? $p_bug_data_draft['project'] : '';
@@ -1346,11 +1394,17 @@ function maxbot_draft_step_keyboard_get( $p_step, array $p_bug_data_draft ) {
             break;
 
         case 'handler':
-            $t_inline_keyboard = maxbot_keyboard_handler_get( $t_project_id );
+            $t_inline_keyboard = maxbot_keyboard_handler_get( $t_project_id, $p_page );
 
             maxbot_keyboard_skip_button_add( $t_inline_keyboard, array( MaxBotActions::REPORT_BUG_TAG => array(
                                       MaxBotActions::SET_HANDLER => array( 'id' => 0 )
             ) ) );
+            break;
+
+        case 'monitors':
+            $t_inline_keyboard = maxbot_keyboard_monitors_get( $t_project_id, maxbot_draft_monitors_selected( $p_bug_data_draft ), $p_page );
+
+            maxbot_keyboard_skip_button_add( $t_inline_keyboard, array( MaxBotActions::REPORT_BUG_TAG => array( MaxBotActions::SKIP_FIELD => $p_step ) ) );
             break;
 
         case 'status':
@@ -1748,8 +1802,30 @@ function maxbot_bug_report( $p_current_action, MaxBotMessage $p_card ) {
 
 //TODO: $t_show_product_build Text area
 //HANDLER
+                case MaxBotActions::GET_HANDLER:
+                    # Leafing through the list answers nothing, the question stays as it is
+                    if( !maxbot_draft_optional_phase_is_on( $t_bug_data_draft )
+                            || !maxbot_draft_step_is_applicable( 'handler', $t_bug_data_draft )
+                            || maxbot_draft_step_is_answered( 'handler', $t_bug_data_draft ) ) {
+                        # The question is not asked anymore, the wizard asks about the
+                        # current state of the draft instead
+                        $t_ask_next = TRUE;
+                        break;
+                    }
+
+                    $t_inline_keyboard = maxbot_draft_step_keyboard_get(
+                                              'handler',
+                                              $t_bug_data_draft,
+                                              isset( $p_current_action[$t_action]['p'] ) ? (int)$p_current_action[$t_action]['p'] : 1
+                            );
+                    $t_suffix          = maxbot_draft_step_label( 'handler' ) . ': ';
+                    break;
+
                 case MaxBotActions::SET_HANDLER:
-                    if( maxbot_draft_answer_check( 'handler', $t_action, $p_current_action[$t_action], $t_bug_data_draft ) ) {
+                    # A user button carries the page of the list it sits on, the skip one does not
+                    $t_handler_page = isset( $p_current_action[$t_action]['p'] ) ? (int)$p_current_action[$t_action]['p'] : 1;
+
+                    if( maxbot_draft_answer_check( 'handler', $t_action, $p_current_action[$t_action], $t_bug_data_draft, $t_handler_page ) ) {
                         if( $p_current_action[MaxBotActions::SET_HANDLER]['id'] === 0 ) {
                             #NULL marks the step as skipped, so the back button can return to it
                             $t_bug_data_draft['handler'] = null;
@@ -1763,7 +1839,59 @@ function maxbot_bug_report( $p_current_action, MaxBotMessage $p_card ) {
                     $t_ask_next = TRUE;
                     break;
 
-//TODO: $t_show_monitors (new element)
+//MONITORS
+//The users are ticked off one by one, the list is redrawn on the same page and the
+//ticks are kept apart from the answer until the list is closed.
+                case MaxBotActions::GET_MONITOR:
+                case MaxBotActions::TOGGLE_MONITOR:
+                case MaxBotActions::END_MONITOR:
+                    if( !maxbot_draft_optional_phase_is_on( $t_bug_data_draft )
+                            || !maxbot_draft_step_is_applicable( 'monitors', $t_bug_data_draft )
+                            || maxbot_draft_step_is_answered( 'monitors', $t_bug_data_draft ) ) {
+                        # The question is not asked anymore, the wizard asks about the
+                        # current state of the draft instead
+                        $t_ask_next = TRUE;
+                        break;
+                    }
+
+                    $t_monitors_page = isset( $p_current_action[$t_action]['p'] ) ? (int)$p_current_action[$t_action]['p'] : 1;
+                    $t_monitors      = maxbot_draft_monitors_selected( $t_bug_data_draft );
+
+                    if( $t_action == MaxBotActions::END_MONITOR ) {
+                        if( maxbot_draft_answer_check( 'monitors', $t_action, $p_current_action[$t_action], $t_bug_data_draft ) ) {
+                            # An empty list is the very answer the skip button gives
+                            $t_bug_data_draft['monitors'] = empty( $t_monitors ) ? null : $t_monitors;
+                            unset( $t_bug_data_draft[MAXBOT_DRAFT_MONITORS_SELECTED] );
+
+                            plugin_config_set( 'bug_data_draft', json_encode( $t_bug_data_draft ), auth_get_current_user_id() );
+                        }
+
+                        $t_ask_next = TRUE;
+                        break;
+                    }
+
+                    if( $t_action == MaxBotActions::TOGGLE_MONITOR
+                            && maxbot_draft_answer_check( 'monitors', $t_action, $p_current_action[$t_action], $t_bug_data_draft, $t_monitors_page ) ) {
+                        $t_monitor_id = (int)$p_current_action[$t_action]['id'];
+                        $t_position   = array_search( $t_monitor_id, $t_monitors );
+
+                        if( $t_position === FALSE ) {
+                            $t_monitors[] = $t_monitor_id;
+                        } else {
+                            unset( $t_monitors[$t_position] );
+                        }
+
+                        $t_bug_data_draft[MAXBOT_DRAFT_MONITORS_SELECTED] = array_values( $t_monitors );
+
+                        plugin_config_set( 'bug_data_draft', json_encode( $t_bug_data_draft ), auth_get_current_user_id() );
+                    }
+
+                    # Leafing through the list and ticking a user off answer nothing,
+                    # the question stays as it is
+                    $t_inline_keyboard = maxbot_draft_step_keyboard_get( 'monitors', $t_bug_data_draft, $t_monitors_page );
+                    $t_suffix          = maxbot_draft_step_label( 'monitors' ) . ': ';
+                    break;
+
 //TARGET_VERSION
                 case MaxBotActions::SET_TARGET_VERSION:
                     if( maxbot_draft_answer_check( 'target_version', $t_action, $p_current_action[$t_action], $t_bug_data_draft ) ) {
@@ -1790,6 +1918,8 @@ function maxbot_bug_report( $p_current_action, MaxBotMessage $p_card ) {
                     # The question the user is looking at is given up, including the
                     # state of a custom field the value of which is being picked
                     maxbot_draft_pending_custom_fields_reset( $t_bug_data_draft );
+                    # The users ticked off in the monitor list are given up along with it
+                    unset( $t_bug_data_draft[MAXBOT_DRAFT_MONITORS_SELECTED] );
 
                     $t_step_to_ask = maxbot_draft_step_last_answered( $t_bug_data_draft );
 
@@ -2795,9 +2925,10 @@ function maxbot_status_change_card_compose( $p_draft, $p_question = '', $p_error
  *
  * @param string  $p_step Step name.
  * @param BugData $p_bug  A valid bug object.
+ * @param integer $p_page Page of a paginated list ( the handlers ).
  * @return MaxBotKeyboard
  */
-function maxbot_status_change_step_keyboard_get( $p_step, BugData $p_bug ) {
+function maxbot_status_change_step_keyboard_get( $p_step, BugData $p_bug, $p_page = 1 ) {
 
     $t_inline_keyboard = new MaxBotKeyboard();
 
@@ -2819,7 +2950,13 @@ function maxbot_status_change_step_keyboard_get( $p_step, BugData $p_bug ) {
             break;
 
         case 'handler':
-            $t_inline_keyboard = maxbot_keyboard_handler_get( $p_bug->project_id, MaxBotActions::CHANGE_STATUS_TAG, MaxBotActions::SET_STATUS_HANDLER );
+            $t_inline_keyboard = maxbot_keyboard_handler_get(
+                                      $p_bug->project_id,
+                                      $p_page,
+                                      MaxBotActions::CHANGE_STATUS_TAG,
+                                      MaxBotActions::SET_STATUS_HANDLER,
+                                      MaxBotActions::GET_STATUS_HANDLER
+                    );
 
             maxbot_keyboard_skip_button_add( $t_inline_keyboard, array( MaxBotActions::CHANGE_STATUS_TAG => array( MaxBotActions::SKIP_FIELD => 'handler' ) ) );
             break;
@@ -2845,16 +2982,17 @@ function maxbot_status_change_step_keyboard_get( $p_step, BugData $p_bug ) {
  * @param array   $p_draft Draft of the dialog.
  * @param BugData $p_bug   A valid bug object.
  * @param string  $p_error Error shown on the card when the previous answer was rejected.
+ * @param integer $p_page  Page of a paginated list ( the handlers ).
  * @return array Data of the message to send.
  */
-function maxbot_status_change_step_ask( $p_step, $p_draft, BugData $p_bug, $p_error = '' ) {
+function maxbot_status_change_step_ask( $p_step, $p_draft, BugData $p_bug, $p_error = '', $p_page = 1 ) {
 
     # The answer of these questions is typed in rather than picked
     if( in_array( $p_step, array( 'duplicate_id', 'bugnote' ), TRUE ) ) {
         plugin_config_set( 'status_change_draft_await', $p_step, auth_get_current_user_id() );
     }
 
-    $t_inline_keyboard = maxbot_status_change_step_keyboard_get( $p_step, $p_bug );
+    $t_inline_keyboard = maxbot_status_change_step_keyboard_get( $p_step, $p_bug, $p_page );
     $t_question        = maxbot_status_change_step_label( $p_step );
 
     maxbot_keyboard_status_change_buttons_add( $t_inline_keyboard, $p_draft, $p_bug );
@@ -2936,9 +3074,10 @@ function maxbot_status_change_submit( $p_draft ) {
  * @param string $p_step           Step name.
  * @param mixed  $p_value          Answer, null for a skipped step.
  * @param array  $p_current_action Decoded callback data of the button pressed.
+ * @param int    $p_page           Page of a paginated list the button sits on.
  * @return array Data of the message to send.
  */
-function maxbot_status_change_answer( $p_step, $p_value, array $p_current_action ) {
+function maxbot_status_change_answer( $p_step, $p_value, array $p_current_action, $p_page = 1 ) {
     $t_draft = maxbot_status_change_draft_get();
 
     # The step name comes back inside callback_data, only the known ones are taken
@@ -2951,7 +3090,7 @@ function maxbot_status_change_answer( $p_step, $p_value, array $p_current_action
 
     if( !maxbot_status_change_step_is_applicable( $p_step, $t_draft, $t_bug )
             || !maxbot_keyboard_offers(
-                                  maxbot_status_change_step_keyboard_get( $p_step, $t_bug ),
+                                  maxbot_status_change_step_keyboard_get( $p_step, $t_bug, $p_page ),
                                   array( MaxBotActions::CHANGE_STATUS_TAG => $p_current_action )
             ) ) {
         maxbot_callback_alert_set( plugin_lang_get( 'value_not_offered' ) );
@@ -3197,7 +3336,38 @@ function maxbot_change_status_step( array $p_current_action, $p_card = NULL ) {
             break;
 
         case MaxBotActions::SET_STATUS_HANDLER:
-            $t_data_send = maxbot_status_change_answer( 'handler', (int)$p_current_action[MaxBotActions::SET_STATUS_HANDLER]['id'], $p_current_action );
+            $t_data_send = maxbot_status_change_answer(
+                                      'handler',
+                                      (int)$p_current_action[MaxBotActions::SET_STATUS_HANDLER]['id'],
+                                      $p_current_action,
+                                      isset( $p_current_action[MaxBotActions::SET_STATUS_HANDLER]['p'] ) ? (int)$p_current_action[MaxBotActions::SET_STATUS_HANDLER]['p'] : 1
+            );
+            break;
+
+        case MaxBotActions::GET_STATUS_HANDLER:
+            # Leafing through the list answers nothing, the question stays as it is
+            $t_draft = maxbot_status_change_draft_get();
+
+            if( $t_draft === NULL ) {
+                # The dialog is gone, the button went stale: the flow starts over
+                $t_data_send = maxbot_bug_select_step( array( 'start' => '' ), MaxBotActions::UPDATE_BUG_TAG );
+                break;
+            }
+
+            if( maxbot_status_change_pending_step( $t_draft ) !== 'handler' ) {
+                # The question is not asked anymore, the dialog asks about the
+                # current state of the draft instead
+                $t_data_send = maxbot_status_change_ask_next_step( $t_draft );
+                break;
+            }
+
+            $t_data_send = maxbot_status_change_step_ask(
+                                      'handler',
+                                      $t_draft,
+                                      bug_get( (int)$t_draft['bug_id'] ),
+                                      '',
+                                      isset( $p_current_action[MaxBotActions::GET_STATUS_HANDLER]['p'] ) ? (int)$p_current_action[MaxBotActions::GET_STATUS_HANDLER]['p'] : 1
+            );
             break;
 
         case MaxBotActions::SET_STATUS_FIXED_VERSION:

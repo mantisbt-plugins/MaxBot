@@ -48,9 +48,6 @@ define( 'MAXBOT_EVENT_TIME_MINUTE_STEP', 5 );
 define( 'MAXBOT_EVENT_DATE_FROM', 'f' );
 define( 'MAXBOT_EVENT_DATE_TO', 't' );
 
-# Buttons of the member list, ten per page as everywhere else in the plugin
-define( 'MAXBOT_EVENT_MEMBERS_PER_PAGE', 10 );
-
 # Buttons of the issue list, the page is asked from Calendar with this size
 define( 'MAXBOT_EVENT_ISSUES_PER_PAGE', 10 );
 
