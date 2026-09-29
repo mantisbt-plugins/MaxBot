@@ -5,6 +5,9 @@ on:
     types:
       - published
 
+permissions:
+  contents: write
+
 jobs:
   build-and-package:
     name: Build and Package
@@ -12,8 +15,13 @@ jobs:
 
     steps:
     # 1. Cloning the repository
+    # The actions are pinned by the commit, a tag can be moved to other code.
+    # The token is not kept in .git/config: no later step pushes, and the
+    # build runs third party code (composer) next to it.
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      with:
+        persist-credentials: false
 
     # 2. Install PHP and Composer
     # The PHP version is the minimum required by the oldest supported MantisBT
@@ -21,7 +29,7 @@ jobs:
     # MaxBot.php::register()), so that composer verifies the dependencies
     # against the oldest platform the built archive has to run on.
     - name: Setup PHP
-      uses: shivammathur/setup-php@v2
+      uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
       with:
         php-version: '7.2'
         extensions: mbstring, intl, zip
@@ -32,17 +40,18 @@ jobs:
       run: composer install --no-dev --optimize-autoloader
 
     # 4. Creating an archive
+    # The values of the event reach the shell through the environment only:
+    # interpolated into the script, a crafted tag name would become a command.
     - name: Create Release Archive
+      env:
+        TAG_NAME: ${{ github.event.release.tag_name }}
       run: |
-        zip -r MaxBot-${{ github.event.release.tag_name }}.zip ./MaxBot -x ".git*" "tests/*" ".github/*"
+        zip -r "MaxBot-${TAG_NAME}.zip" ./MaxBot -x ".git*" "tests/*" ".github/*"
 
     # 5. Uploading the archive to the release
     - name: Upload to Release
-      uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./MaxBot-${{ github.event.release.tag_name }}.zip
-        asset_name: MaxBot-${{ github.event.release.tag_name }}.zip
-        asset_content_type: application/zip
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAG_NAME: ${{ github.event.release.tag_name }}
+        REPOSITORY: ${{ github.repository }}
+      run: gh release upload "${TAG_NAME}" "MaxBot-${TAG_NAME}.zip" --repo "${REPOSITORY}"
