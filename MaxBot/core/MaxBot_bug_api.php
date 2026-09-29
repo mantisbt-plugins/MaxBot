@@ -49,9 +49,20 @@ function maxbot_bug_add( $p_bug_data_draft ) {
         }
     }
 
-    $f_files = array_key_exists( 'attachments', $p_bug_data_draft ) ? $p_bug_data_draft['attachments'] : null;
-    if( $f_files !== null && !empty( $f_files ) ) {
-        $t_issue['files'] = helper_array_transpose( $f_files );
+    # The draft keeps the reference to the file only, the file itself is
+    # downloaded now and removed right after the command has stored it
+    $t_file = MaxBotFile::from_array( array_key_exists( 'attachments', $p_bug_data_draft ) ? $p_bug_data_draft['attachments'] : null );
+    if( $t_file !== NULL ) {
+        $t_file_error = '';
+        $t_files      = maxbot_file_fetch( $t_file, $t_file_error );
+
+        # The issue is still worth creating, the dialog cannot be replayed;
+        # the failure is left in the log of MantisBT
+        if( $t_files !== NULL ) {
+            $t_issue['files'] = helper_array_transpose( $t_files );
+        } else {
+            plugin_log_event( 'ERROR! The file of the issue draft is not attached: ' . $t_file_error );
+        }
     }
 
     $t_build = array_key_exists( 'build', $p_bug_data_draft ) ? $p_bug_data_draft['build'] : '';
@@ -195,7 +206,11 @@ function maxbot_bug_add( $p_bug_data_draft ) {
     );
 
     $t_command = new IssueAddCommand( $t_data );
-    $t_result = $t_command -> execute();
+    try {
+        $t_result = $t_command -> execute();
+    } finally {
+        maxbot_file_download_remove();
+    }
     $t_issue_id = (int) $t_result['issue_id'];
 
     # The key of the entry is localized by the core when the history is shown,
@@ -212,10 +227,44 @@ function maxbot_bug_add( $p_bug_data_draft ) {
  * validated, the update events are signalled, the note carried by the dialog is
  * added within the update and the email matching the transition is sent.
  *
+ * The draft outlives the rights it was filled in with, so the issue is checked
+ * the way view.php checks it and the configuration is read for its project, the
+ * way bug_update.php overrides the current project.
+ *
  * @param array $p_draft Draft of the status change dialog.
  * @return array 'ok' flag, 'error' and 'warning' texts, the final 'new_status'.
  */
 function maxbot_bug_status_change( $p_draft ) {
+
+    $t_error = maxbot_bug_view_error( $p_draft['bug_id'] );
+
+    if( $t_error != '' ) {
+        return array(
+                                  'ok'         => FALSE,
+                                  'error'      => $t_error,
+                                  'warning'    => '',
+                                  'old_status' => 0,
+                                  'new_status' => (int)$p_draft['new_status'],
+        );
+    }
+
+    $t_project_override = maxbot_project_override_set( bug_get_field( (int)$p_draft['bug_id'], 'project_id' ) );
+
+    try {
+        return maxbot_bug_status_change_apply( $p_draft );
+    } finally {
+        maxbot_project_override_restore( $t_project_override );
+    }
+}
+
+/**
+ * Apply the status change of a draft to an issue the current user may view,
+ * see maxbot_bug_status_change().
+ *
+ * @param array $p_draft Draft of the status change dialog.
+ * @return array 'ok' flag, 'error' and 'warning' texts, the final 'new_status'.
+ */
+function maxbot_bug_status_change_apply( $p_draft ) {
     global $g_maxbot_skip_sending_bugnote;
 
     $t_bug_id     = (int)$p_draft['bug_id'];
@@ -235,6 +284,27 @@ function maxbot_bug_status_change( $p_draft ) {
     if( $t_new_status == $t_existing_bug->status ) {
         $t_result['error'] = error_string( ERROR_ACCESS_DENIED );
         return $t_result;
+    }
+
+    # The issue or the rights may have changed since the status was picked, the
+    # checks of the status list, bug_change_status_page.php and bug_update.php
+    # are run once more on the current state
+    $t_warning = '';
+    $t_error   = maxbot_status_change_entry_check( $t_existing_bug, $t_new_status, $t_warning );
+
+    if( $t_error != '' ) {
+        $t_result['error'] = $t_error;
+        return $t_result;
+    }
+
+    # An answer is taken only for a question the dialog would ask now, the way
+    # bug_change_status_page.php shows the fields
+    foreach( array( 'resolution', 'duplicate_id', 'handler', 'fixed_in_version' ) as $t_step ) {
+        if( $p_draft[$t_step] !== '' && $p_draft[$t_step] !== null
+                && !maxbot_status_change_step_is_applicable( $t_step, $p_draft, $t_existing_bug ) ) {
+            $t_result['error'] = error_string( ERROR_ACCESS_DENIED );
+            return $t_result;
+        }
     }
 
     $t_project_id      = $t_existing_bug->project_id;
@@ -281,8 +351,39 @@ function maxbot_bug_status_change( $p_draft ) {
         $t_updated_bug->resolution = (int)$p_draft['resolution'];
     }
 
+    # Don't allow the resolution which contradicts the new status, the rule of
+    # bug_update.php ( #15653 of the core )
+    $t_resolution_fixed_threshold = config_get( 'bug_resolution_fixed_threshold', null, null, $t_project_id );
+    $t_reopen_resolution          = config_get( 'bug_reopen_resolution', null, null, $t_project_id );
+
+    if( $t_existing_bug->resolution != $t_updated_bug->resolution && (
+            ( $t_updated_bug->resolution >= $t_resolution_fixed_threshold
+                && $t_updated_bug->resolution != $t_reopen_resolution
+                && $t_updated_bug->status < $t_resolved_status )
+            || ( $t_updated_bug->resolution == $t_reopen_resolution
+                && ( $t_existing_bug->status < $t_resolved_status
+                    || $t_updated_bug->status >= $t_resolved_status ) )
+            || ( $t_updated_bug->resolution < $t_resolution_fixed_threshold
+                && $t_updated_bug->status >= $t_resolved_status )
+    ) ) {
+        error_parameters(
+                get_enum_element( 'resolution', $t_updated_bug->resolution ),
+                get_enum_element( 'status', $t_updated_bug->status )
+        );
+        $t_result['error'] = error_string( ERROR_INVALID_RESOLUTION );
+        return $t_result;
+    }
+
     if( $p_draft['fixed_in_version'] !== '' && $p_draft['fixed_in_version'] !== null ) {
-        $t_updated_bug->fixed_in_version = $p_draft['fixed_in_version'];
+        # The version has to exist in the project, get_valid_version() of bug_update.php
+        if( $p_draft['fixed_in_version'] != $t_existing_bug->fixed_in_version
+                && version_get_id( (string)$p_draft['fixed_in_version'], $t_project_id ) === false ) {
+            error_parameters( (string)$p_draft['fixed_in_version'] );
+            $t_result['error'] = error_string( ERROR_VERSION_NOT_FOUND );
+            return $t_result;
+        }
+
+        $t_updated_bug->fixed_in_version = (string)$p_draft['fixed_in_version'];
     }
 
     if( $p_draft['handler'] !== '' && $p_draft['handler'] !== null ) {
@@ -373,7 +474,7 @@ function maxbot_bug_status_change( $p_draft ) {
     if( $t_note_text != '' || !empty( $t_files ) ) {
         if( access_has_bug_level( config_get( 'add_bugnote_threshold' ), $t_bug_id ) ) {
             if( $t_note_text != '' ) {
-                $t_note_id = bugnote_add( $t_bug_id, $t_note_text, '0:00', config_get( 'default_bugnote_view_status' ) == VS_PRIVATE, 0, '', null, FALSE );
+                $t_note_id = bugnote_add( $t_bug_id, $t_note_text, '0:00', maxbot_bugnote_view_state_get( $t_bug_id ) == VS_PRIVATE, 0, '', null, FALSE );
                 bugnote_process_mentions( $t_bug_id, $t_note_id, $t_note_text );
                 maxbot_history_log( $t_bug_id, 'note_added', '~' . (int)$t_note_id );
             }
@@ -391,6 +492,10 @@ function maxbot_bug_status_change( $p_draft ) {
             $t_result['warning'] = trim( $t_result['warning'] . PHP_EOL . error_string( ERROR_ACCESS_DENIED ) );
         }
     }
+
+    # The core has its own copy of the file by now, or the file is refused; an
+    # exception thrown before this point leaves it to the shutdown cleanup
+    maxbot_file_download_remove();
 
     # Add the duplicate relationship if requested
     if( $t_updated_bug->duplicate_id != 0 ) {
@@ -434,4 +539,90 @@ function maxbot_bug_status_change( $p_draft ) {
 
     $t_result['ok'] = TRUE;
     return $t_result;
+}
+
+/**
+ * Create a directory with a random name, accessible to its owner only, for a
+ * single download.
+ *
+ * @return string Path of the directory.
+ * @throws Exception The directory is not created.
+ */
+function maxbot_file_download_dir_create() {
+    global $g_maxbot_file_download_dirs;
+
+    $t_base = plugin_config_get( 'download_path' );
+    if( is_blank( $t_base ) ) {
+        $t_base = sys_get_temp_dir();
+    }
+
+    $t_dir = rtrim( $t_base, '/\\' ) . '/MaxBot_' . bin2hex( random_bytes( 16 ) );
+
+    # mkdir() fails on an existing path, so the directory cannot be one planted in advance
+    if( !@mkdir( $t_dir, 0700 ) ) {
+        throw new Exception( 'The download directory "' . $t_dir . '" is not created' );
+    }
+
+    # The mode given to mkdir() is narrowed by the umask only, never widened
+    @chmod( $t_dir, 0700 );
+
+    if( !is_array( $g_maxbot_file_download_dirs ) ) {
+        $g_maxbot_file_download_dirs = array();
+        register_shutdown_function( 'maxbot_file_download_remove' );
+    }
+
+    $g_maxbot_file_download_dirs[] = $t_dir;
+
+    return $t_dir;
+}
+
+/**
+ * Remove the files downloaded into the directories of
+ * maxbot_file_download_dir_create() along with the directories.
+ *
+ * @return void
+ */
+function maxbot_file_download_remove() {
+    global $g_maxbot_file_download_dirs;
+
+    if( empty( $g_maxbot_file_download_dirs ) ) {
+        return;
+    }
+
+    foreach( $g_maxbot_file_download_dirs as $t_dir ) {
+        maxbot_directory_delete( $t_dir );
+    }
+
+    $g_maxbot_file_download_dirs = array();
+}
+
+/**
+ * Delete a directory with all of its content.
+ *
+ * @param string $p_dir Path of the directory.
+ * @return void
+ */
+function maxbot_directory_delete( $p_dir ) {
+
+    $t_entries = @scandir( $p_dir );
+
+    if( $t_entries === FALSE ) {
+        return;
+    }
+
+    foreach( $t_entries as $t_entry ) {
+        if( $t_entry == '.' || $t_entry == '..' ) {
+            continue;
+        }
+
+        $t_path = $p_dir . '/' . $t_entry;
+
+        if( is_dir( $t_path ) && !is_link( $t_path ) ) {
+            maxbot_directory_delete( $t_path );
+        } else {
+            @unlink( $t_path );
+        }
+    }
+
+    @rmdir( $p_dir );
 }

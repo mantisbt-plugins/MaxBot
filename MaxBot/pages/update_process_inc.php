@@ -25,13 +25,29 @@ if( !defined( 'MAXBOT_UPDATE_PROCESS_INC_ALLOW' ) ) {
 # sender and the batch goes on. The fatal errors of the core are signalled with
 # trigger_error() and would stop the process, so they are turned into exceptions
 # for the time of the loop.
-global $g_maxbot_previous_error_handler;
+global $g_maxbot_previous_error_handler, $g_lang_overrides, $g_project_override, $g_cache_current_project,
+       $g_error_parameters, $g_maxbot_skip_sending_bugnote, $g_maxbot_callback_alert;
 
 $g_maxbot_previous_error_handler = set_error_handler( 'maxbot_update_error_handler' );
+
+# Languages pushed while an update is processed are dropped back to this depth
+$t_lang_depth = count( $g_lang_overrides );
 
 try {
 
     foreach ( $t_results as $t_update ) {
+
+        # The long polling runs many updates of different users in one process: the
+        # context an update has left behind must not reach the next one
+        $g_project_override            = null;
+        $g_cache_current_project       = null;
+        $g_error_parameters            = array();
+        $g_maxbot_skip_sending_bugnote = FALSE;
+        $g_maxbot_callback_alert       = '';
+
+        while( count( $g_lang_overrides ) > $t_lang_depth ) {
+            lang_pop();
+        }
 
         try {
 
@@ -43,7 +59,7 @@ try {
 
             //We check the binding of the MAX account to the current user account mantisbt and if it is not linked,
             //then we issue an invitation to bind and skip processing the current update.
-            if( !maxbot_auth_ensure_user_authenticated( $t_update->account_id, $t_update->lang ) ) {
+            if( !maxbot_auth_ensure_user_authenticated( $t_update->account_id, $t_update->lang, $t_update->account_name ) ) {
                 continue;
             }
 
@@ -290,10 +306,8 @@ try {
             }
 
         } catch( Throwable $t_exception ) {
-            //The update is given up on, the sender is told about it and the rest of the batch is processed
-            plugin_log_event( 'ERROR! ' . get_class( $t_exception ) . ': ' . $t_exception->getMessage()
-                    . ' in ' . $t_exception->getFile() . ':' . $t_exception->getLine() );
-
+            //The update is given up on, the sender is told about it and the rest of the batch
+            //is processed; the error is logged there
             maxbot_update_error_notify( $t_update, $t_exception );
 
             continue;

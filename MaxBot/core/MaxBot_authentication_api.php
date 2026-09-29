@@ -19,11 +19,12 @@
  * Check that a MAX account is linked to an enabled MantisBT user and log that
  * user in; an account linked to nobody gets an invitation to link one instead.
  *
- * @param string      $p_account_id Account of MAX, the user id.
- * @param string|null $p_lang_code  Language code MAX gives for the account.
+ * @param string      $p_account_id   Account of MAX, the user id.
+ * @param string|null $p_lang_code    Language code MAX gives for the account.
+ * @param string      $p_account_name Name of the account as MAX shows it.
  * @return boolean
  */
-function maxbot_auth_ensure_user_authenticated( $p_account_id, $p_lang_code = null ) {
+function maxbot_auth_ensure_user_authenticated( $p_account_id, $p_lang_code = null, $p_account_name = '' ) {
 
     $t_address = (string)$p_account_id;
 
@@ -34,7 +35,7 @@ function maxbot_auth_ensure_user_authenticated( $p_account_id, $p_lang_code = nu
     if( $t_mantis_user_id == 0 ) {
         lang_push( maxbot_lang_map_auto( $p_lang_code ) );
         # a failure of the invitation is logged by MaxBotApi
-        maxbot_user_signup( $p_account_id );
+        maxbot_user_signup( $p_account_id, $p_account_name );
         plugin_log_event( 'Authorization Error! Account ' . $t_address . ' is not mapped to any mantisbt user. As a response, an authorization invitation was sent.' );
         return false;
     } else if( !user_exists( $t_mantis_user_id ) || !user_is_enabled( $t_mantis_user_id ) ) {
@@ -42,7 +43,7 @@ function maxbot_auth_ensure_user_authenticated( $p_account_id, $p_lang_code = nu
         # For the same reason the name for the log is taken from user_get_name(),
         # which answers with the placeholder of a deleted user instead of halting
         lang_push( maxbot_lang_map_auto( $p_lang_code ) );
-        maxbot_user_signup( $p_account_id );
+        maxbot_user_signup( $p_account_id, $p_account_name );
         plugin_log_event( 'Authorization Error! User ' . user_get_name( $t_mantis_user_id ) . ' (id#' . $t_mantis_user_id . ') is disabled or deleted. As a response, an authorization invitation was sent.' );
         return false;
     } else {
@@ -62,10 +63,11 @@ function maxbot_auth_ensure_user_authenticated( $p_account_id, $p_lang_code = nu
  * Invite the owner of a MAX account which is not linked to a MantisBT account
  * to link one.
  *
- * @param string $p_account_id Account of MAX, the user id.
+ * @param string $p_account_id   Account of MAX, the user id.
+ * @param string $p_account_name Name of the account, shown on the confirmation page.
  * @return boolean Whether the invitation went through.
  */
-function maxbot_user_signup( $p_account_id ) {
+function maxbot_user_signup( $p_account_id, $p_account_name = '' ) {
 
     # The url of MantisBT as the users see it: the scripts run from the command line
     $t_url = maxbot_mantis_url_get();
@@ -83,11 +85,17 @@ function maxbot_user_signup( $p_account_id ) {
     # The link binds the account with one tap, but only works when MantisBT is reachable
     # from the phone; the PIN code is typed by the user in his account preferences instead
     if( $t_registration_method != MAXBOT_REGISTRATION_PIN ) {
+        # The account id is public, so the link also carries a one-time secret: without
+        # it anybody could send a MantisBT user a link with his own id and get his chat
+        # bound to that account by one careless click
+        $t_token = maxbot_registration_link_token_issue( $p_account_id, $p_account_name );
+
         $t_signup_keyboard = new MaxBotKeyboard();
         $t_signup_keyboard->addRow( [
                               'text' => plugin_lang_get( 'registration_button_text' ),
                               'url'  => $t_url . plugin_page( 'registred', TRUE )
                                           . '&account_id=' . urlencode( $p_account_id )
+                                          . '&token=' . $t_token
         ] );
 
         $data_signup['reply_markup'] = $t_signup_keyboard;

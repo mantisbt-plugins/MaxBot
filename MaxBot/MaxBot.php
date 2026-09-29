@@ -38,6 +38,9 @@ define( 'MAXBOT_UNLINK_SOURCE_ADMIN', 'admin' );
 # Seconds a PIN code stays valid
 define( 'MAXBOT_PIN_CODE_TTL', 15 * 60 );
 
+# Seconds the one-time token of a registration link stays valid
+define( 'MAXBOT_REGISTRATION_LINK_TTL', 15 * 60 );
+
 # Seconds the registration state is kept: the PIN code inside it expires much earlier,
 # but the id of the invitation is still needed to remove that message from the chat when
 # the user follows the link later.
@@ -110,6 +113,15 @@ class MaxBotPlugin extends MantisPlugin {
                                   // version 1.0.0 (schema 5)
                                   // Unique: a code must identify exactly one MAX account
                                   array( 'CreateIndexSQL', array( 'idx_maxbot_registration_pin_code', plugin_table( 'registration' ), 'pin_code', array( 'UNIQUE' ) ) ),
+                                  // version 1.0.0 (schema 6)
+                                  // One-time token of the registration link (its SHA-256, never the token
+                                  // itself), the time it was issued and the MAX account it was issued to
+                                  // as the bot saw it, shown on the confirmation page
+                                  array( 'AddColumnSQL', array( plugin_table( 'registration' ), "
+                                        link_token      C(64)   $t_notnull DEFAULT \" '' \",
+                                        link_timestamp  I   UNSIGNED    $t_notnull DEFAULT '0',
+                                        account_name    C(255)  $t_notnull DEFAULT \" '' \"
+                                " ) ),
         );
     }
 
@@ -221,7 +233,8 @@ class MaxBotPlugin extends MantisPlugin {
                                   'registration_method'                         => MAXBOT_REGISTRATION_LINK,
                                   # whether the chat is told about an unlink done by an administrator
                                   'admin_unlink_notify'                         => ON,
-                                  'download_path'                               => '/tmp/',
+                                  # base of the per download directories ( 0700, removed after use ), blank - the temp directory of the system
+                                  'download_path'                               => '',
                                   'proxy_address'                               => '',
                                   'time_out_server_response'                    => 30,
                                   'debug_connection_log_path'                   => '/tmp/MaxBot_debug.log',
@@ -483,6 +496,9 @@ class MaxBotPlugin extends MantisPlugin {
                                   'ERROR_PIN_CODE_EXPIRED'        => plugin_lang_get( 'ERROR_PIN_CODE_EXPIRED' ),
                                   'ERROR_PIN_CODE_GENERATE'       => plugin_lang_get( 'ERROR_PIN_CODE_GENERATE' ),
                                   'ERROR_USER_ALREADY_ASSOCIATED' => plugin_lang_get( 'ERROR_USER_ALREADY_ASSOCIATED' ),
+                                  'ERROR_ACCOUNT_ALREADY_ASSOCIATED' => plugin_lang_get( 'ERROR_ACCOUNT_ALREADY_ASSOCIATED' ),
+                                  'ERROR_REGISTRATION_LINK_INVALID'  => plugin_lang_get( 'ERROR_REGISTRATION_LINK_INVALID' ),
+                                  'ERROR_DEBUG_LOG_PATH_NOT_ALLOWED' => plugin_lang_get( 'ERROR_DEBUG_LOG_PATH_NOT_ALLOWED' ),
         );
     }
 

@@ -67,7 +67,6 @@ $s_plugin_MaxBot_ERROR_CURL_VERSION = 'CURL NECESARIO >= 7.21.7 ';
 
 $s_plugin_MaxBot_bot_successfully_attached = 'El robot está conectado correctamente.';
 $s_plugin_MaxBot_info_to_redirect_bot_page = 'Regrese al chat, o espere la redirección.';
-$s_plugin_MaxBot_user_relationship_question = '¿Asociar su cuenta con un bot?';
 $s_plugin_MaxBot_user_relationship_yes = 'SÍ';
 $s_plugin_MaxBot_user_relationship_no = 'NO';
 
@@ -387,3 +386,14 @@ $s_plugin_MaxBot_request_failed = 'la solicitud falló, vea el registro del plug
 $s_plugin_MaxBot_api_response = 'Respuesta del servidor de MAX: ';
 
 $s_plugin_MaxBot_file_download_failed = 'No se pudo descargar el archivo de MAX, envíelo de nuevo.';
+
+$s_plugin_MaxBot_user_relationship_confirm_title = '¿Vincular una cuenta de MAX a su cuenta de MantisBT?';
+$s_plugin_MaxBot_user_relationship_confirm_max = 'Cuenta de MAX';
+$s_plugin_MaxBot_user_relationship_confirm_mantis = 'Cuenta de MantisBT';
+$s_plugin_MaxBot_user_relationship_confirm_effect = 'Una vez vinculada, esta cuenta de MAX actuará en el bot en su nombre: creará incidencias, añadirá notas y recibirá sus notificaciones.';
+$s_plugin_MaxBot_user_relationship_confirm_warning = 'Si no pidió este enlace al bot usted mismo, pulse NO.';
+$s_plugin_MaxBot_user_relationship_declined = 'La cuenta de MAX no se ha vinculado y el enlace ya no funciona. Para vincular su propia cuenta de MAX, envíe cualquier mensaje al bot y siga el nuevo enlace.';
+$s_plugin_MaxBot_ERROR_ACCOUNT_ALREADY_ASSOCIATED = 'SU CUENTA YA ESTÁ ENLAZADA CON OTRA CUENTA DE MAX. DESENLÁCELA PRIMERO EN LA PÁGINA DE MAX DE LAS PREFERENCIAS DE SU CUENTA.';
+$s_plugin_MaxBot_ERROR_REGISTRATION_LINK_INVALID = 'EL ENLACE NO ES VÁLIDO, YA SE USÓ O HA CADUCADO. ENVÍE CUALQUIER MENSAJE AL BOT PARA OBTENER UNO NUEVO.';
+$s_plugin_MaxBot_ERROR_DEBUG_LOG_PATH_NOT_ALLOWED = 'LA RUTA DEL REGISTRO DE DEPURACIÓN NO ESTÁ PERMITIDA: SOLO SE ADMITE UN ARCHIVO .LOG O .TXT EN UN DIRECTORIO EXISTENTE FUERA DE LA RAÍZ WEB.';
+$s_plugin_MaxBot_value_not_offered = 'Este valor ya no está disponible para usted, elija uno de los ofrecidos.';

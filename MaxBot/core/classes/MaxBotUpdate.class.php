@@ -43,6 +43,13 @@ class MaxBotUpdate {
         public $account_id = '';
 
         /**
+         * Name of the account as MAX shows it: first and last name followed by
+         * @username, empty when unknown.
+         * @var string
+         */
+        public $account_name = '';
+
+        /**
          * Language code of the account, NULL when MAX gives none.
          * @var string|null
          */

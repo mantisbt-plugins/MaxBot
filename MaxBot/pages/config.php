@@ -37,6 +37,12 @@ $f_debug_connection_log_path    = gpc_get_string   ( 'debug_connection_log_path'
 $f_debug_connection_enabled     = gpc_get_bool     ( 'debug_connection_enabled', FALSE );
 $f_cli_g_path                   = gpc_get_string   ( 'cli_g_path', plugin_config_get( 'cli_g_path' ) );
 
+# The debug log carries the messages of the users: a path the web server could
+# serve or execute is refused before anything is saved
+if( !is_blank( $f_debug_connection_log_path ) && !MaxBotFileLogger::path_is_allowed( $f_debug_connection_log_path ) ) {
+	plugin_error( 'ERROR_DEBUG_LOG_PATH_NOT_ALLOWED', ERROR );
+}
+
 if( !in_array( $f_registration_method, array( MAXBOT_REGISTRATION_LINK, MAXBOT_REGISTRATION_PIN, MAXBOT_REGISTRATION_BOTH ), true ) ) {
 	$f_registration_method = MAXBOT_REGISTRATION_LINK;
 }
@@ -87,9 +93,7 @@ if( plugin_config_get( 'get_updates_run_time' ) != $f_get_updates_run_time ) {
 }
 
 if( $f_debug_connection_enabled == ON ) {
-	$t_log_handle = @fopen( $f_debug_connection_log_path, 'a' );
-	if( $t_log_handle !== false ) {
-		fclose( $t_log_handle );
+	if( MaxBotFileLogger::file_prepare( $f_debug_connection_log_path ) ) {
 		plugin_config_set( 'debug_connection_enabled', $f_debug_connection_enabled ? ON : OFF );
 		plugin_config_set( 'debug_connection_log_path', $f_debug_connection_log_path );
 	} else {
@@ -117,7 +121,7 @@ function maxbot_config_api_call( MaxBotApi $p_max, $p_method, array $p_args, arr
                 $t_result = call_user_func_array( array( $p_max, $p_method ), $p_args );
         } catch( Exception $t_error ) {
                 # the network fails the same way the API does: no route, timeout, proxy
-                $p_notes[] = plugin_lang_get( 'api_response' ) . string_display_line( $t_error->getMessage() );
+                $p_notes[] = plugin_lang_get( 'api_response' ) . string_display_line( maxbot_token_mask( $t_error->getMessage() ) );
                 return FALSE;
         }
 

@@ -70,7 +70,6 @@ $s_plugin_MaxBot_cli_g_path_global_notice = 'Серым в поле показа
 
 $s_plugin_MaxBot_bot_successfully_attached = 'Бот успешно привязан.';
 $s_plugin_MaxBot_info_to_redirect_bot_page = 'Вернитесь в чат, либо дождитесь переадресации.';
-$s_plugin_MaxBot_user_relationship_question = 'Связать ваш аккаунт с ботом?';
 $s_plugin_MaxBot_user_relationship_yes = 'ДА';
 $s_plugin_MaxBot_user_relationship_no = 'НЕТ';
 
@@ -386,3 +385,14 @@ $s_plugin_MaxBot_request_failed = 'запрос не выполнен, см. л�
 $s_plugin_MaxBot_api_response = 'Ответ сервера MAX: ';
 
 $s_plugin_MaxBot_file_download_failed = 'Не удалось скачать файл из MAX, отправьте его ещё раз.';
+
+$s_plugin_MaxBot_user_relationship_confirm_title = 'Привязать MAX к вашей учётной записи MantisBT?';
+$s_plugin_MaxBot_user_relationship_confirm_max = 'Аккаунт MAX';
+$s_plugin_MaxBot_user_relationship_confirm_mantis = 'Учётная запись MantisBT';
+$s_plugin_MaxBot_user_relationship_confirm_effect = 'После привязки этот аккаунт MAX будет работать в боте от вашего имени: создавать задачи, добавлять заметки и получать ваши уведомления.';
+$s_plugin_MaxBot_user_relationship_confirm_warning = 'Если вы не запрашивали эту ссылку у бота сами — нажмите НЕТ.';
+$s_plugin_MaxBot_user_relationship_declined = 'Аккаунт MAX не привязан, ссылка больше не действует. Чтобы привязать свой MAX, отправьте боту любое сообщение и перейдите по новой ссылке.';
+$s_plugin_MaxBot_ERROR_ACCOUNT_ALREADY_ASSOCIATED = 'ВАШ АККАУНТ УЖЕ ПРИВЯЗАН К ДРУГОМУ АККАУНТУ MAX. СНАЧАЛА СНИМИТЕ ПРИВЯЗКУ НА СТРАНИЦЕ MAX В НАСТРОЙКАХ ВАШЕГО АККАУНТА.';
+$s_plugin_MaxBot_ERROR_REGISTRATION_LINK_INVALID = 'ССЫЛКА НЕДЕЙСТВИТЕЛЬНА, УЖЕ ИСПОЛЬЗОВАНА ИЛИ УСТАРЕЛА. ОТПРАВЬТЕ БОТУ ЛЮБОЕ СООБЩЕНИЕ, ЧТОБЫ ПОЛУЧИТЬ НОВУЮ.';
+$s_plugin_MaxBot_ERROR_DEBUG_LOG_PATH_NOT_ALLOWED = 'НЕДОПУСТИМЫЙ ПУТЬ К ЛОГУ ОТЛАДКИ: РАЗРЕШЁН ТОЛЬКО ФАЙЛ .LOG ИЛИ .TXT В СУЩЕСТВУЮЩЕМ КАТАЛОГЕ ВНЕ КОРНЯ ВЕБ-СЕРВЕРА.';
+$s_plugin_MaxBot_value_not_offered = 'Это значение вам больше недоступно, выберите одно из предложенных.';

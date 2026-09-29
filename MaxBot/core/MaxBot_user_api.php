@@ -84,21 +84,64 @@ function maxbot_account_user_get( $p_account_id ) {
 }
 
 /**
- * Link a MAX account to a MantisBT user. A user has one account and an account
- * belongs to one user, so the bindings standing in the way are replaced.
+ * Make sure the MantisBT user and the MAX account may be linked to each other.
+ *
+ * A binding is never replaced silently: whoever holds the old one would lose it without
+ * a word, and a forged request would take over the account. Either side bound elsewhere
+ * has to be released first - the MantisBT account on its MAX preferences page, the chat
+ * by the /stop command. Only a binding left behind by a deleted MantisBT user is dropped
+ * here, nobody is left to release it.
+ *
+ * @param integer $p_user_id    MantisBT user id.
+ * @param string  $p_account_id Account of MAX, the user id.
+ * @return boolean True when exactly this binding already exists.
+ */
+function maxbot_account_link_ensure_allowed( $p_user_id, $p_account_id ) {
+    $t_bound_account = maxbot_account_get( (int)$p_user_id );
+    $t_bound_user_id = maxbot_account_user_get( (string)$p_account_id );
+
+    if( $t_bound_account === (string)$p_account_id && $t_bound_user_id == (int)$p_user_id ) {
+        return true;
+    }
+
+    if( $t_bound_account !== '' ) {
+        plugin_log_event( 'Registration Error! Mantisbt user ' . user_get_username( $p_user_id ) . ' is already mapped to account ' . $t_bound_account . ', account ' . $p_account_id . ' is refused' );
+        plugin_error( 'ERROR_ACCOUNT_ALREADY_ASSOCIATED', ERROR );
+    }
+
+    if( $t_bound_user_id != 0 ) {
+        if( user_exists( $t_bound_user_id ) ) {
+            plugin_log_event( 'Registration Error! Account ' . $p_account_id . ' is already mapped to mantisbt user ' . user_get_username( $t_bound_user_id ) );
+            plugin_error( 'ERROR_USER_ALREADY_ASSOCIATED', ERROR );
+        }
+
+        $t_account_table = plugin_table( 'account' );
+
+        db_param_push();
+
+        $t_query = "DELETE FROM $t_account_table
+			WHERE mantis_user_id=" . db_param();
+        db_query( $t_query, array( $t_bound_user_id ) );
+    }
+
+    return false;
+}
+
+/**
+ * Link a MAX account to a MantisBT user. Refused when either of them is bound
+ * elsewhere, see maxbot_account_link_ensure_allowed().
  *
  * @param integer $p_user_id    MantisBT user id.
  * @param string  $p_account_id Account of MAX, the user id.
  * @return void
  */
 function maxbot_account_link( $p_user_id, $p_account_id ) {
+
+    if( maxbot_account_link_ensure_allowed( $p_user_id, $p_account_id ) ) {
+        return;
+    }
+
     $t_account_table = plugin_table( 'account' );
-
-    db_param_push();
-
-    $t_query = "DELETE FROM $t_account_table
-			WHERE account_id=" . db_param() . ' OR mantis_user_id=' . db_param();
-    db_query( $t_query, array( (string)$p_account_id, (int)$p_user_id ) );
 
     db_param_push();
 
@@ -296,6 +339,12 @@ function maxbot_pin_code_get( $p_account_id ) {
 /**
  * Pick a PIN code no other registration is using.
  *
+ * A state row outlives its code by far, so an expired code is still held by its
+ * row: the owner may type it once more and must not bind a chat of somebody else
+ * by it. Such a code is given out again only when the valid codes and the held
+ * ones leave nothing else - otherwise anybody with enough MAX accounts could
+ * use the whole range up for the two days the rows are kept.
+ *
  * @return integer PIN code.
  */
 function maxbot_pin_code_free_get() {
@@ -304,21 +353,29 @@ function maxbot_pin_code_free_get() {
 
     db_param_push();
 
-    $t_query  = "SELECT pin_code FROM $t_registration_table";
+    $t_query  = "SELECT pin_code, timestamp FROM $t_registration_table";
     $t_result = db_query( $t_query );
 
+    $t_valid_since  = db_now() - MAXBOT_PIN_CODE_TTL;
+    $t_codes_valid  = array();
     $t_codes_in_use = array();
     while( $t_row = db_fetch_array( $t_result ) ) {
         $t_codes_in_use[(int) $t_row['pin_code']] = true;
+
+        if( (int) $t_row['timestamp'] >= $t_valid_since ) {
+            $t_codes_valid[(int) $t_row['pin_code']] = true;
+        }
     }
 
     # 9000 possible codes against the few registrations running at the same time:
     # a free code is found on the first attempts, the limit only guards the loop.
     # random_int(): the code is a secret, so a CSPRNG - mt_rand() is predictable
-    for( $i = 0; $i < 100; $i++ ) {
-        $t_candidate = random_int( 1000, 9999 );
-        if( !isset( $t_codes_in_use[$t_candidate] ) ) {
-            return $t_candidate;
+    foreach( array( $t_codes_in_use, $t_codes_valid ) as $t_codes_taken ) {
+        for( $i = 0; $i < 100; $i++ ) {
+            $t_candidate = random_int( 1000, 9999 );
+            if( !isset( $t_codes_taken[$t_candidate] ) ) {
+                return $t_candidate;
+            }
         }
     }
 
@@ -466,6 +523,99 @@ function maxbot_pin_code_account_get( $p_pin_code, $p_expired = false ) {
     }
 
     return (string)$t_row['account_id'];
+}
+
+/**
+ * Issue a new one-time token for the registration link of the MAX account. It
+ * replaces any token issued before, so only the link of the latest invitation works.
+ *
+ * Only the SHA-256 of the token is stored: the link is the one place the token itself
+ * exists. The name of the account goes along, so that the confirmation page tells
+ * the MantisBT user which chat he is about to bind.
+ *
+ * The registration state row must exist, see maxbot_pin_code_get().
+ *
+ * @param string $p_account_id   Account of MAX, the user id.
+ * @param string $p_account_name Name of the account, may be empty.
+ * @return string Token to put into the link.
+ */
+function maxbot_registration_link_token_issue( $p_account_id, $p_account_name ) {
+
+    $t_registration_table = plugin_table( 'registration' );
+
+    $t_token = bin2hex( random_bytes( 16 ) );
+
+    # The table is created with the 3-byte utf8 charset on MySQL: a 4-byte character
+    # (an emoji in the name) would fail the query and with it the whole invitation
+    $t_name = preg_replace( '/[\x{10000}-\x{10FFFF}]/u', '', (string) $p_account_name );
+    $t_name = mb_substr( trim( (string) $t_name ), 0, 255 );
+
+    db_param_push();
+
+    $t_query = "UPDATE $t_registration_table
+			SET link_token=" . db_param() . ', link_timestamp=' . db_param() . ', account_name=' . db_param() . '
+			WHERE account_id=' . db_param();
+    db_query( $t_query, array( hash( 'sha256', $t_token ), db_now(), $t_name, (string)$p_account_id ) );
+
+    return $t_token;
+}
+
+/**
+ * Check the token of a registration link.
+ *
+ * @param string $p_account_id Account of MAX from the link.
+ * @param string $p_token      Token from the link.
+ * @return string|false Name of the account the link was issued to, false when the
+ *                      token is unknown, used, replaced or expired.
+ */
+function maxbot_registration_link_token_check( $p_account_id, $p_token ) {
+
+    if( is_blank( $p_token ) || is_blank( $p_account_id ) ) {
+        return false;
+    }
+
+    $t_registration_table = plugin_table( 'registration' );
+
+    db_param_push();
+
+    $t_query  = "SELECT link_token, link_timestamp, account_name
+			FROM $t_registration_table
+			WHERE account_id=" . db_param();
+    $t_result = db_query( $t_query, array( (string)$p_account_id ) );
+
+    $t_row = db_fetch_array( $t_result );
+
+    if( $t_row === false || is_blank( $t_row['link_token'] ) ) {
+        return false;
+    }
+
+    if( (int) $t_row['link_timestamp'] < db_now() - MAXBOT_REGISTRATION_LINK_TTL ) {
+        return false;
+    }
+
+    if( !hash_equals( (string) $t_row['link_token'], hash( 'sha256', (string) $p_token ) ) ) {
+        return false;
+    }
+
+    return (string) $t_row['account_name'];
+}
+
+/**
+ * Burn the token of the registration link, leaving the rest of the state in place.
+ *
+ * @param string $p_account_id Account of MAX, the user id.
+ * @return void
+ */
+function maxbot_registration_link_token_burn( $p_account_id ) {
+
+    $t_registration_table = plugin_table( 'registration' );
+
+    db_param_push();
+
+    $t_query = "UPDATE $t_registration_table
+			SET link_token=" . db_param() . ', link_timestamp=' . db_param() . '
+			WHERE account_id=' . db_param();
+    db_query( $t_query, array( '', 0, (string)$p_account_id ) );
 }
 
 /**

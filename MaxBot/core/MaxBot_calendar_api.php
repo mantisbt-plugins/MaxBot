@@ -1266,11 +1266,18 @@ function maxbot_event_report( $p_current_action, MaxBotMessage $p_card ) {
     switch( $t_action ) {
 //PROJECT
         case MaxBotActions::GET_PROJECT:
+            # only the subprojects of a project offered to the user are listed
+            $t_project_id = (int)$p_current_action[MaxBotActions::GET_PROJECT]['id'];
+
+            if( !maxbot_project_is_accessible( $t_project_id ) ) {
+                $t_project_id = ALL_PROJECTS;
+            }
+
             $t_question        = maxbot_event_draft_step_label( 'project' );
             $t_inline_keyboard = maxbot_keyboard_projects_get(
-                                      $p_current_action[MaxBotActions::GET_PROJECT]['id'],
-                                      $p_current_action[MaxBotActions::GET_PROJECT]['p'],
-                                      $p_current_action[MaxBotActions::GET_PROJECT]['fp'],
+                                      $t_project_id,
+                                      max( 1, (int)$p_current_action[MaxBotActions::GET_PROJECT]['p'] ),
+                                      max( 1, (int)$p_current_action[MaxBotActions::GET_PROJECT]['fp'] ),
                                       MaxBotActions::CREATE_EVENT_TAG
                     );
 
@@ -1285,8 +1292,11 @@ function maxbot_event_report( $p_current_action, MaxBotMessage $p_card ) {
             $t_project_id = (int)$p_current_action[MaxBotActions::SET_PROJECT]['id'];
 
             # calendar_api_event_create() answers a missing permission with
-            # access_denied(), which would end the whole request of the bot
-            if( !maxbot_calendar_can_report_event( $t_project_id, $t_user_id ) ) {
+            # access_denied(), which would end the whole request of the bot;
+            # the project has to be one of the list as well, the threshold of
+            # "All projects" or of a project out of reach is no answer to it
+            if( !maxbot_project_is_accessible( $t_project_id )
+                    || !maxbot_calendar_can_report_event( $t_project_id, $t_user_id ) ) {
                 $t_error = error_string( ERROR_ACCESS_DENIED );
                 break;
             }

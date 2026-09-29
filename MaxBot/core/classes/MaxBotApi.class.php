@@ -359,8 +359,8 @@ class MaxBotApi {
         }
 
         /**
-         * Download a file of an incoming message into the download path of the
-         * plugin. A file of MAX is downloaded straight from the url of its
+         * Download a file of an incoming message into a private directory under
+         * the download path of the plugin. A file of MAX is downloaded straight from the url of its
          * attachment; a photo or a video has no name, one is made up out of its type.
          *
          * @param MaxBotFile $p_file File to download.
@@ -372,11 +372,15 @@ class MaxBotApi {
                         throw new Exception( plugin_lang_get( 'file_download_failed' ) );
                 }
 
-                $t_path = plugin_config_get( 'download_path' ) . 'max_' . md5( uniqid( $p_file->ref, TRUE ) );
-
-                $this->debug( 'GET ' . $p_file->ref . ' -> ' . $t_path );
+                $t_path = '';
 
                 try {
+                        # A directory of its own, readable by the owner only and removed
+                        # by maxbot_file_download_remove() once the core has stored the file
+                        $t_path = maxbot_file_download_dir_create() . '/max_' . bin2hex( random_bytes( 8 ) );
+
+                        $this->debug( 'GET ' . $p_file->ref . ' -> ' . $t_path );
+
                         $t_response = $this->client()->request( 'GET', $p_file->ref, array( 'sink' => $t_path ) );
                         $t_status   = $t_response->getStatusCode();
                 } catch( Exception $t_error ) {
@@ -387,12 +391,16 @@ class MaxBotApi {
                 $this->debug( 'Response ' . $t_status . ' of the download of ' . $p_file->ref );
 
                 if( $t_status != 200 ) {
-                        @unlink( $t_path );
+                        if( $t_path !== '' ) {
+                                @unlink( $t_path );
+                        }
 
                         plugin_log_event( 'ERROR! MAX file download failed: ' . ( $t_status == 0 ? $this->last_error : 'HTTP ' . $t_status ) );
 
                         throw new Exception( plugin_lang_get( 'file_download_failed' ) );
                 }
+
+                @chmod( $t_path, 0600 );
 
                 $t_name = $p_file->name;
 
@@ -615,6 +623,7 @@ class MaxBotApi {
                                 }
 
                                 $t_update->account_id          = $t_user_id;
+                                $t_update->account_name        = $this->user_name( $p_update['user'] );
                                 $t_update->kind                = MaxBotUpdate::KIND_COMMAND;
                                 $t_update->command             = 'start';
                                 $t_update->command_payload     = isset( $p_update['payload'] ) ? trim( (string)$p_update['payload'] ) : '';
@@ -627,11 +636,12 @@ class MaxBotApi {
                                 $t_callback = isset( $p_update['callback'] ) && is_array( $p_update['callback'] ) ? $p_update['callback'] : array();
                                 $t_user_id  = $this->user_id( isset( $t_callback['user'] ) ? $t_callback['user'] : NULL );
 
-                                if( $t_user_id === '' ) {
+                                if( $t_user_id === '' || !$this->message_is_private( isset( $p_update['message'] ) ? $p_update['message'] : NULL ) ) {
                                         return NULL;
                                 }
 
                                 $t_update->account_id    = $t_user_id;
+                                $t_update->account_name  = $this->user_name( $t_callback['user'] );
                                 $t_update->kind          = MaxBotUpdate::KIND_CALLBACK;
                                 $t_update->callback_id   = isset( $t_callback['callback_id'] ) ? (string)$t_callback['callback_id'] : '';
                                 $t_update->callback_data = isset( $t_callback['payload'] ) ? (string)$t_callback['payload'] : '';
@@ -647,12 +657,16 @@ class MaxBotApi {
                                 $t_message = isset( $p_update['message'] ) && is_array( $p_update['message'] ) ? $p_update['message'] : array();
                                 $t_user_id = $this->user_id( isset( $t_message['sender'] ) ? $t_message['sender'] : NULL );
 
-                                if( $t_user_id === '' ) {
+                                # Only the dialog with the bot is served: the menus, the drafts
+                                # and the lists of issues are personal, a message of a group
+                                # chat the bot is a member of is no request to it
+                                if( $t_user_id === '' || !$this->message_is_private( $t_message ) ) {
                                         return NULL;
                                 }
 
-                                $t_update->account_id = $t_user_id;
-                                $t_update->message    = $this->message_map( $t_message, $t_user_id );
+                                $t_update->account_id   = $t_user_id;
+                                $t_update->account_name = $this->user_name( $t_message['sender'] );
+                                $t_update->message      = $this->message_map( $t_message, $t_user_id );
 
                                 $t_content = $t_update->message;
 
@@ -755,6 +769,47 @@ class MaxBotApi {
          */
         private function user_id( $p_user ) {
                 return is_array( $p_user ) && isset( $p_user['user_id'] ) ? (string)$p_user['user_id'] : '';
+        }
+
+        /**
+         * Name of a user of the Bot API as MAX shows it: first and last name
+         * followed by @username.
+         *
+         * @param mixed $p_user User object of the Bot API.
+         * @return string Empty when there is none.
+         */
+        private function user_name( $p_user ) {
+                if( !is_array( $p_user ) ) {
+                        return '';
+                }
+
+                $t_name = trim( ( isset( $p_user['first_name'] ) ? (string)$p_user['first_name'] : '' )
+                                . ' ' . ( isset( $p_user['last_name'] ) ? (string)$p_user['last_name'] : '' ) );
+
+                if( $t_name === '' && isset( $p_user['name'] ) ) {
+                        $t_name = trim( (string)$p_user['name'] );
+                }
+
+                if( !empty( $p_user['username'] ) ) {
+                        $t_name = trim( $t_name . ' @' . (string)$p_user['username'] );
+                }
+
+                return $t_name;
+        }
+
+        /**
+         * Whether a message of the Bot API belongs to the dialog of a user with the
+         * bot. A message naming no chat type is taken as one of the dialog.
+         *
+         * @param mixed $p_message Message object of the Bot API, NULL when missing.
+         * @return boolean
+         */
+        private function message_is_private( $p_message ) {
+                if( !is_array( $p_message ) || !isset( $p_message['recipient']['chat_type'] ) ) {
+                        return TRUE;
+                }
+
+                return (string)$p_message['recipient']['chat_type'] === 'dialog';
         }
 
         /**

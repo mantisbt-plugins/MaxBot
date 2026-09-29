@@ -70,7 +70,6 @@ $s_plugin_MaxBot_cli_g_path_global_notice = 'The greyed out value in the field i
 
 $s_plugin_MaxBot_bot_successfully_attached = 'The bot is successfully attached.';
 $s_plugin_MaxBot_info_to_redirect_bot_page = 'Return to the chat, or wait for redirection.';
-$s_plugin_MaxBot_user_relationship_question = 'Associate your account with a bot?';
 $s_plugin_MaxBot_user_relationship_yes = 'YES';
 $s_plugin_MaxBot_user_relationship_no = 'NO';
 
@@ -386,3 +385,14 @@ $s_plugin_MaxBot_request_failed = 'the request failed, see the log of the plugin
 $s_plugin_MaxBot_api_response = 'MAX server response: ';
 
 $s_plugin_MaxBot_file_download_failed = 'The file could not be downloaded from MAX, please send it again.';
+
+$s_plugin_MaxBot_user_relationship_confirm_title = 'Link a MAX account to your MantisBT account?';
+$s_plugin_MaxBot_user_relationship_confirm_max = 'MAX account';
+$s_plugin_MaxBot_user_relationship_confirm_mantis = 'MantisBT account';
+$s_plugin_MaxBot_user_relationship_confirm_effect = 'Once linked, this MAX account works in the bot on your behalf: it reports issues, adds notes and receives your notifications.';
+$s_plugin_MaxBot_user_relationship_confirm_warning = 'If you did not ask the bot for this link yourself, press NO.';
+$s_plugin_MaxBot_user_relationship_declined = 'The MAX account is not linked and the link does not work any more. To link your own MAX account, send any message to the bot and follow the new link.';
+$s_plugin_MaxBot_ERROR_ACCOUNT_ALREADY_ASSOCIATED = 'YOUR ACCOUNT IS ALREADY LINKED TO ANOTHER MAX ACCOUNT. UNLINK IT FIRST ON THE MAX PAGE OF YOUR ACCOUNT PREFERENCES.';
+$s_plugin_MaxBot_ERROR_REGISTRATION_LINK_INVALID = 'THE LINK IS INVALID, ALREADY USED OR HAS EXPIRED. SEND ANY MESSAGE TO THE BOT TO GET A NEW ONE.';
+$s_plugin_MaxBot_ERROR_DEBUG_LOG_PATH_NOT_ALLOWED = 'THE DEBUG LOG PATH IS NOT ALLOWED: ONLY A .LOG OR .TXT FILE IN AN EXISTING DIRECTORY OUTSIDE THE WEB ROOT MAY BE USED.';
+$s_plugin_MaxBot_value_not_offered = 'This value is not available to you any more, pick one of the offered ones.';
