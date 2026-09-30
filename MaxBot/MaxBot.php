@@ -60,7 +60,7 @@ class MaxBotPlugin extends MantisPlugin {
 
         $this->author  = 'Grigoriy Ermolaev';
         $this->contact = 'igflocal@gmail.com';
-        $this->url     = 'https://github.com/brlumen/MaxBot';
+        $this->url     = 'https://github.com/mantisbt-plugins/MaxBot';
         $this->page    = 'config_page';
     }
 

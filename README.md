@@ -62,7 +62,7 @@ channels are ignored, since the menus and the lists of issues are personal.
 Download
 --------
 Please download the stable version.
-(https://github.com/brlumen/MaxBot/releases/latest)
+(https://github.com/mantisbt-plugins/MaxBot/releases/latest)
 
 
 How to install
